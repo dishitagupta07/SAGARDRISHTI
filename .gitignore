@@ -1,0 +1,25 @@
+# Node
+node_modules/
+dist/
+build/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Mac
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Generated files
+backend/generated_reports/
+*.log
