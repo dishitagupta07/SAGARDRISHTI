@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -26,70 +26,54 @@ export default function SpillDetection() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [selectedDetection, setSelectedDetection] = useState(null);
+  const [detections, setDetections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const detections = [
-    {
-      id: "SP-026",
-      location: "Bay of Bengal",
-      date: "24 Aug 2025",
-      time: "14:32 UTC",
-      area: "42.6 km²",
-      confidence: 94,
-      status: "Active",
-      type: "Oil Spill",
-      age: "4–7 hours",
-    },
-    {
-      id: "SP-025",
-      location: "Arabian Sea",
-      date: "21 Aug 2025",
-      time: "11:18 UTC",
-      area: "18.4 km²",
-      confidence: 89,
-      status: "Investigated",
-      type: "Oil Spill",
-      age: "6–9 hours",
-    },
-    {
-      id: "SP-024",
-      location: "Bay of Bengal",
-      date: "18 Aug 2025",
-      time: "09:42 UTC",
-      area: "31.8 km²",
-      confidence: 91,
-      status: "Investigated",
-      type: "Oil Spill",
-      age: "3–6 hours",
-    },
-    {
-      id: "SP-023",
-      location: "Indian Ocean",
-      date: "14 Aug 2025",
-      time: "16:05 UTC",
-      area: "12.7 km²",
-      confidence: 82,
-      status: "Closed",
-      type: "Unknown",
-      age: "8–12 hours",
-    },
-    {
-      id: "SP-022",
-      location: "Arabian Sea",
-      date: "09 Aug 2025",
-      time: "12:24 UTC",
-      area: "8.9 km²",
-      confidence: 76,
-      status: "Closed",
-      type: "Natural Seep",
-      age: "10–14 hours",
-    },
-  ];
+  useEffect(() => {
+    const fetchDetections = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/incidents/"
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch incidents");
+        }
+
+        const data = await response.json();
+
+        const formattedDetections = data.map((incident) => ({
+          id: incident._id,
+          location: `${incident.latitude}° N · ${incident.longitude}° E`,
+          area: `${incident.area_km2} km²`,
+          confidence: incident.confidence,
+          status: incident.status
+            ? incident.status.charAt(0).toUpperCase() +
+            incident.status.slice(1).toLowerCase()
+            : "—",
+          severity: incident.severity,
+        }));
+
+        setDetections(formattedDetections);
+      } catch (err) {
+        console.error("Error fetching detections:", err);
+        setError("Unable to load detections from backend.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetections();
+  }, []);
 
   const filteredDetections = detections.filter((item) => {
     const matchesSearch =
       item.id.toLowerCase().includes(search.toLowerCase()) ||
-      item.location.toLowerCase().includes(search.toLowerCase()) ||
-      item.type.toLowerCase().includes(search.toLowerCase());
+      item.location.toLowerCase().includes(search.toLowerCase());
 
     const matchesFilter =
       filter === "All" || item.status === filter;
@@ -114,13 +98,13 @@ export default function SpillDetection() {
     const rows = detections.map((item) => [
       item.id,
       item.location,
-      item.date,
-      item.time,
+      "—",
+      "—",
       item.area,
       `${item.confidence}%`,
       item.status,
-      item.type,
-      item.age,
+      "—",
+      "—",
     ]);
 
     const csvContent = [
@@ -504,11 +488,10 @@ export default function SpillDetection() {
                       <button
                         key={item}
                         onClick={() => setFilter(item)}
-                        className={`rounded px-2 py-1 text-[9px] transition ${
-                          filter === item
-                            ? "bg-[#12658c] text-white"
-                            : "text-[#718fa0] hover:text-white"
-                        }`}
+                        className={`rounded px-2 py-1 text-[9px] transition ${filter === item
+                          ? "bg-[#12658c] text-white"
+                          : "text-[#718fa0] hover:text-white"
+                          }`}
                       >
                         {item}
                       </button>
@@ -582,7 +565,7 @@ export default function SpillDetection() {
                             </p>
 
                             <p className="mt-1 text-[9px] text-[#63899e]">
-                              {item.type}
+                              —
                             </p>
 
                           </div>
@@ -611,11 +594,11 @@ export default function SpillDetection() {
                       <td className="px-5 py-4">
 
                         <p className="text-xs text-[#a1b6c1]">
-                          {item.date}
+                          —
                         </p>
 
                         <p className="mt-1 text-[9px] text-[#63899e]">
-                          {item.time}
+                          —
                         </p>
 
                       </td>
@@ -652,13 +635,12 @@ export default function SpillDetection() {
                       <td className="px-5 py-4">
 
                         <span
-                          className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${
-                            item.status === "Active"
-                              ? "bg-red-500/15 text-[#ff6474]"
-                              : item.status === "Investigated"
+                          className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${item.status === "Active"
+                            ? "bg-red-500/15 text-[#ff6474]"
+                            : item.status === "Investigated"
                               ? "bg-yellow-500/15 text-[#f6c55f]"
                               : "bg-[#35d69f]/10 text-[#5ee5b0]"
-                          }`}
+                            }`}
                         >
                           {item.status}
                         </span>
@@ -670,7 +652,7 @@ export default function SpillDetection() {
                         <button
                           onClick={() => {
                             setSelectedDetection(item);
-                            navigate("/incidents");
+                            navigate(`/incidents?id=${item.id}`);
                           }}
                           className="flex items-center gap-1 text-[10px] font-semibold text-[#20bce9] hover:text-white"
                         >

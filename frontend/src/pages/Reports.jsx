@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FileText,
   Search,
@@ -21,56 +21,6 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 
-const incidentData = {
-  "SP-026": {
-    location: "Bay of Bengal",
-    status: "Active Oil Spill",
-    risk: "HIGH RISK",
-    area: "42.6 km²",
-    confidence: "94%",
-    vessels: 7,
-  },
-  "SP-025": {
-    location: "Arabian Sea",
-    status: "Investigated Oil Spill",
-    risk: "MEDIUM RISK",
-    area: "18.4 km²",
-    confidence: "89%",
-    vessels: 5,
-  },
-  "SP-024": {
-    location: "Bay of Bengal",
-    status: "Investigated Oil Spill",
-    risk: "HIGH RISK",
-    area: "31.8 km²",
-    confidence: "91%",
-    vessels: 9,
-  },
-  "SP-023": {
-    location: "Indian Ocean",
-    status: "Unknown",
-    risk: "LOW RISK",
-    area: "12.7 km²",
-    confidence: "82%",
-    vessels: 4,
-  },
-  "SP-022": {
-    location: "Arabian Sea",
-    status: "Natural Seep",
-    risk: "LOW RISK",
-    area: "8.9 km²",
-    confidence: "76%",
-    vessels: 2,
-  },
-  "SP-021": {
-    location: "Bay of Bengal",
-    status: "Investigated Oil Spill",
-    risk: "MEDIUM RISK",
-    area: "25.3 km²",
-    confidence: "88%",
-    vessels: 6,
-  },
-};
 
 const reports = [
   {
@@ -175,10 +125,35 @@ export default function Reports() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [generatedReports, setGeneratedReports] = useState(reports);
+  const [incidents, setIncidents] = useState([]);
+  const [loadingIncidents, setLoadingIncidents] = useState(true);
+
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      try {
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/incidents/"
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch incidents");
+        }
+
+        const data = await response.json();
+        setIncidents(data);
+      } catch (error) {
+        console.error("Error fetching incidents:", error);
+      } finally {
+        setLoadingIncidents(false);
+      }
+    };
+
+    fetchIncidents();
+  }, []);
 
   const [showModal, setShowModal] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(
-    incomingIncident || "SP-026"
+    incomingIncident || ""
   );
   const [selectedType, setSelectedType] = useState("Incident Report");
 
@@ -205,8 +180,9 @@ export default function Reports() {
     });
   }, [search, activeFilter, generatedReports]);
 
-  const selectedData =
-    incidentData[selectedIncident] || incidentData["SP-026"];
+  const selectedData = incidents.find(
+    (incident) => incident._id === selectedIncident
+  );
 
   const downloadReport = (report) => {
     const content = `
@@ -305,12 +281,14 @@ END OF REPORT
         type: selectedType,
         related:
           selectedType === "Regional Report"
-            ? selectedData.location
+            ? selectedData
+              ? `${selectedData.latitude}° N · ${selectedData.longitude}° E`
+              : "—"
             : selectedIncident,
         date: "14 Sep 2026",
         time: "19:00 UTC",
         status: "Generated",
-        confidence: selectedData.confidence,
+        confidence: selectedData?.confidence ?? "—",
       };
 
       setGeneratedReports((prev) => [
@@ -324,11 +302,14 @@ END OF REPORT
   };
 
   const viewReport = (report) => {
-    if (incidentData[report.related]) {
+    const relatedIncident = incidents.find(
+      (incident) => incident._id === report.related
+    );
+
+    if (relatedIncident) {
       navigate(`/incidents?id=${report.related}`);
       return;
     }
-
     if (report.type === "Vessel Report") {
       navigate("/vessel-intelligence");
     } else if (report.type === "Detection Report") {
@@ -617,12 +598,15 @@ END OF REPORT
 
                         <td className="px-4 py-4">
                           <button
-                            onClick={() =>
-                              incidentData[report.related] &&
-                              navigate(
-                                `/incidents?id=${report.related}`
-                              )
-                            }
+                            onClick={() => {
+                              const relatedIncident = incidents.find(
+                                (incident) => incident._id === report.related
+                              );
+
+                              if (relatedIncident) {
+                                navigate(`/incidents?id=${report.related}`);
+                              }
+                            }}
                             className="rounded-md bg-[#0c3147] px-2 py-1 text-[11px] text-[#81aabd] transition hover:bg-[#124766] hover:text-white"
                           >
                             {report.related}
@@ -848,13 +832,11 @@ END OF REPORT
                     }
                     className="w-full rounded-lg border border-[#21465d] bg-[#071f32] px-3 py-3 text-sm text-white outline-none focus:border-[#287da3]"
                   >
-                    {Object.keys(incidentData).map(
-                      (id) => (
-                        <option key={id}>
-                          {id}
-                        </option>
-                      )
-                    )}
+                    {incidents.map((incident) => (
+                      <option key={incident._id} value={incident._id}>
+                        {incident._id}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -894,22 +876,14 @@ END OF REPORT
                     </p>
 
                     <p className="text-[11px] text-[#698c9f]">
-                      {selectedData.location} ·{" "}
-                      {selectedData.status}
+                      {selectedData
+                        ? `${selectedData.latitude}° N · ${selectedData.longitude}° E · ${selectedData.status}`
+                        : "No incident selected"}
                     </p>
                   </div>
 
-                  <span
-                    className={`ml-auto rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                      selectedData.risk === "HIGH RISK"
-                        ? "bg-[#54202a] text-[#ff7180]"
-                        : selectedData.risk ===
-                          "MEDIUM RISK"
-                        ? "bg-[#493d1c] text-[#f6c55f]"
-                        : "bg-[#123d36] text-[#5ee5b0]"
-                    }`}
-                  >
-                    {selectedData.risk}
+                  <span className="ml-auto rounded-full bg-[#123d36] px-2.5 py-1 text-[10px] font-semibold text-[#5ee5b0]">
+                    {selectedData?.severity?.toUpperCase() || "—"}
                   </span>
                 </div>
 
@@ -919,7 +893,9 @@ END OF REPORT
                       Spill Area
                     </p>
                     <p className="mt-1 text-sm font-semibold">
-                      {selectedData.area}
+                      {selectedData?.area_km2
+                        ? `${selectedData.area_km2} km²`
+                        : "—"}
                     </p>
                   </div>
 
@@ -928,7 +904,7 @@ END OF REPORT
                       Confidence
                     </p>
                     <p className="mt-1 text-sm font-semibold text-[#35d69f]">
-                      {selectedData.confidence}
+                      {selectedData?.confidence ?? "—"}
                     </p>
                   </div>
 
@@ -937,7 +913,7 @@ END OF REPORT
                       Vessels
                     </p>
                     <p className="mt-1 text-sm font-semibold">
-                      {selectedData.vessels}
+                      —
                     </p>
                   </div>
                 </div>
@@ -1017,11 +993,10 @@ END OF REPORT
                         onClick={() =>
                           setter(!enabled)
                         }
-                        className={`flex items-center gap-3 rounded-xl border p-4 text-left transition ${
-                          enabled
+                        className={`flex items-center gap-3 rounded-xl border p-4 text-left transition ${enabled
                             ? "border-[#17617e] bg-[#0b3046]"
                             : "border-[#1a3e55] bg-[#071f32]"
-                        }`}
+                          }`}
                       >
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#103c53]">
                           <Icon

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
@@ -22,158 +22,6 @@ import {
 
 import Sidebar from "../components/Sidebar";
 
-const incidents = [
-  {
-    id: "SP-026",
-    location: "Bay of Bengal",
-    description: "Oil spill detected in the Bay of Bengal",
-    area: "42.6 km²",
-    confidence: "94%",
-    detectionTime: "14:32 UTC",
-    date: "24 Aug 2025",
-    drift: "NE · 12 km",
-    risk: "HIGH",
-    status: "ACTIVE",
-    age: "4–7 hours",
-    coast: "18.4 km",
-    coordinates: "12.680° N · 80.580° E",
-    wind: "NE · 18 km/h",
-    current: "NE · 0.7 m/s",
-    wave: "1.4 m",
-    visibility: "8.2 km",
-    oilSignature: "91%",
-    classification: "89%",
-    perimeter: "31.8 km",
-    majorAxis: "12.4 km",
-    minorAxis: "4.7 km",
-    vessels: 7,
-  },
-  {
-    id: "SP-025",
-    location: "Arabian Sea",
-    description: "Oil spill detected in the Arabian Sea",
-    area: "18.4 km²",
-    confidence: "89%",
-    detectionTime: "11:18 UTC",
-    date: "21 Aug 2025",
-    drift: "NW · 9 km",
-    risk: "MEDIUM",
-    status: "INVESTIGATED",
-    age: "6–9 hours",
-    coast: "26.7 km",
-    coordinates: "15.420° N · 68.310° E",
-    wind: "NW · 15 km/h",
-    current: "NW · 0.5 m/s",
-    wave: "1.8 m",
-    visibility: "7.6 km",
-    oilSignature: "87%",
-    classification: "84%",
-    perimeter: "19.6 km",
-    majorAxis: "8.2 km",
-    minorAxis: "3.4 km",
-    vessels: 5,
-  },
-  {
-    id: "SP-024",
-    location: "Bay of Bengal",
-    description: "Oil spill detected in the Bay of Bengal",
-    area: "31.8 km²",
-    confidence: "91%",
-    detectionTime: "09:42 UTC",
-    date: "18 Aug 2025",
-    drift: "E · 15 km",
-    risk: "HIGH",
-    status: "INVESTIGATED",
-    age: "3–6 hours",
-    coast: "21.3 km",
-    coordinates: "14.180° N · 82.460° E",
-    wind: "E · 16 km/h",
-    current: "E · 0.6 m/s",
-    wave: "1.6 m",
-    visibility: "9.1 km",
-    oilSignature: "90%",
-    classification: "88%",
-    perimeter: "27.4 km",
-    majorAxis: "10.8 km",
-    minorAxis: "4.1 km",
-    vessels: 9,
-  },
-  {
-    id: "SP-023",
-    location: "Indian Ocean",
-    description: "Unclassified maritime spill detected in the Indian Ocean",
-    area: "12.7 km²",
-    confidence: "82%",
-    detectionTime: "16:05 UTC",
-    date: "14 Aug 2025",
-    drift: "SW · 7 km",
-    risk: "LOW",
-    status: "CLOSED",
-    age: "8–12 hours",
-    coast: "42.5 km",
-    coordinates: "8.920° N · 76.240° E",
-    wind: "SW · 12 km/h",
-    current: "SW · 0.4 m/s",
-    wave: "1.2 m",
-    visibility: "10.2 km",
-    oilSignature: "76%",
-    classification: "72%",
-    perimeter: "14.8 km",
-    majorAxis: "6.4 km",
-    minorAxis: "2.8 km",
-    vessels: 4,
-  },
-  {
-    id: "SP-022",
-    location: "Arabian Sea",
-    description: "Natural seep signature detected in the Arabian Sea",
-    area: "8.9 km²",
-    confidence: "76%",
-    detectionTime: "12:24 UTC",
-    date: "09 Aug 2025",
-    drift: "SE · 5 km",
-    risk: "LOW",
-    status: "CLOSED",
-    age: "10–14 hours",
-    coast: "37.8 km",
-    coordinates: "18.640° N · 66.920° E",
-    wind: "SE · 10 km/h",
-    current: "SE · 0.3 m/s",
-    wave: "1.1 m",
-    visibility: "11.4 km",
-    oilSignature: "68%",
-    classification: "64%",
-    perimeter: "11.2 km",
-    majorAxis: "4.9 km",
-    minorAxis: "2.1 km",
-    vessels: 2,
-  },
-  {
-    id: "SP-021",
-    location: "Bay of Bengal",
-    description: "Oil spill detected in the Bay of Bengal",
-    area: "25.3 km²",
-    confidence: "88%",
-    detectionTime: "10:16 UTC",
-    date: "03 Aug 2025",
-    drift: "NE · 10 km",
-    risk: "MEDIUM",
-    status: "INVESTIGATED",
-    age: "5–8 hours",
-    coast: "24.1 km",
-    coordinates: "13.740° N · 81.820° E",
-    wind: "NE · 14 km/h",
-    current: "NE · 0.5 m/s",
-    wave: "1.5 m",
-    visibility: "8.8 km",
-    oilSignature: "85%",
-    classification: "82%",
-    perimeter: "23.6 km",
-    majorAxis: "9.5 km",
-    minorAxis: "3.9 km",
-    vessels: 6,
-  },
-];
 
 const vessels = [
   {
@@ -219,15 +67,88 @@ export default function IncidentDetails() {
   const [activeTab, setActiveTab] = useState("overview");
   const [search, setSearch] = useState("");
 
+  const [incidents, setIncidents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/incidents/"
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch incidents");
+        }
+
+        const data = await response.json();
+
+        const formattedIncidents = data.map((incident) => ({
+          id: incident._id,
+          location: `${incident.latitude}° N · ${incident.longitude}° E`,
+          description: "Maritime spill incident detected",
+          area: `${incident.area_km2} km²`,
+          confidence: `${incident.confidence}%`,
+          detectionTime: "—",
+          date: "—",
+          drift: "—",
+          risk: incident.severity?.toUpperCase() || "—",
+          status: incident.status?.toUpperCase() || "—",
+          age: "—",
+          coast: "—",
+          coordinates: `${incident.latitude}° N · ${incident.longitude}° E`,
+          wind: "—",
+          current: "—",
+          wave: "—",
+          visibility: "—",
+          oilSignature: "—",
+          classification: "—",
+          perimeter: "—",
+          majorAxis: "—",
+          minorAxis: "—",
+          vessels: 0,
+        }));
+
+        setIncidents(formattedIncidents);
+      } catch (err) {
+        console.error("Error fetching incidents:", err);
+        setError("Unable to load incidents from backend.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchIncidents();
+  }, []);
+
   const selectedIncident = incidents.find(
     (incident) => incident.id === incidentId
   );
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#061b2b] text-white">
+        <p className="text-sm text-[#8faab8]">Loading incidents...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#061b2b] text-white">
+        <p className="text-sm text-[#ff6474]">{error}</p>
+      </div>
+    );
+  }
 
   // If no incident is selected, show the complete incident list.
   if (!selectedIncident) {
     const filteredIncidents = incidents.filter((incident) => {
       const value = search.toLowerCase();
-
       return (
         incident.id.toLowerCase().includes(value) ||
         incident.location.toLowerCase().includes(value) ||

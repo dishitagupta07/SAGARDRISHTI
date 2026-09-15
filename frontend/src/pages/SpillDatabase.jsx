@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -28,68 +28,48 @@ export default function SpillDatabase() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
 
-  const incidents = [
-    {
-      id: "SP-026",
-      date: "24 Aug 2025",
-      location: "Bay of Bengal",
-      area: "42.6 km²",
-      cause: "Under Investigation",
-      vessels: 5,
-      risk: "HIGH",
-      status: "Active",
-    },
-    {
-      id: "SP-025",
-      date: "21 Aug 2025",
-      location: "Arabian Sea",
-      area: "18.4 km²",
-      cause: "Vessel Discharge",
-      vessels: 7,
-      risk: "MEDIUM",
-      status: "Investigated",
-    },
-    {
-      id: "SP-024",
-      date: "18 Aug 2025",
-      location: "Bay of Bengal",
-      area: "31.8 km²",
-      cause: "Vessel Discharge",
-      vessels: 9,
-      risk: "HIGH",
-      status: "Investigated",
-    },
-    {
-      id: "SP-023",
-      date: "14 Aug 2025",
-      location: "Indian Ocean",
-      area: "12.7 km²",
-      cause: "Unknown",
-      vessels: 4,
-      risk: "LOW",
-      status: "Closed",
-    },
-    {
-      id: "SP-022",
-      date: "09 Aug 2025",
-      location: "Arabian Sea",
-      area: "8.9 km²",
-      cause: "Natural Seep",
-      vessels: 2,
-      risk: "LOW",
-      status: "Closed",
-    },
-    {
-      id: "SP-021",
-      date: "03 Aug 2025",
-      location: "Bay of Bengal",
-      area: "25.3 km²",
-      cause: "Vessel Discharge",
-      vessels: 6,
-      risk: "MEDIUM",
-      status: "Investigated",
-    },
-  ];
+  const [incidents, setIncidents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/incidents/"
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch incidents");
+        }
+
+        const data = await response.json();
+
+        const formattedIncidents = data.map((incident) => ({
+          id: incident._id,
+          date: "—",
+          location: `${incident.latitude}° N · ${incident.longitude}° E`,
+          area: `${incident.area_km2} km²`,
+          cause: "—",
+          vessels: "—",
+          risk: incident.severity?.toUpperCase() || "—",
+          status: incident.status?.toUpperCase() || "—",
+        }));
+
+        setIncidents(formattedIncidents);
+      } catch (err) {
+        console.error("Error fetching incidents:", err);
+        setError("Unable to load incidents from backend.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchIncidents();
+  }, []);
 
   const filteredIncidents = incidents.filter((incident) => {
     const query = search.toLowerCase();
@@ -167,17 +147,16 @@ export default function SpillDatabase() {
   };
 
   const statusClass = (status) => {
-    if (status === "Active") {
+    if (status === "ACTIVE") {
       return "bg-red-500/15 text-[#ff6474]";
     }
 
-    if (status === "Investigated") {
+    if (status === "INVESTIGATED") {
       return "bg-yellow-500/15 text-[#f6c55f]";
     }
 
     return "bg-[#35d69f]/10 text-[#5ee5b0]";
   };
-
   return (
     <div className="min-h-screen bg-[#061b2b] text-white">
       <Sidebar />
@@ -564,17 +543,16 @@ export default function SpillDatabase() {
                     className="ml-1 text-[#63899e]"
                   />
 
-                  {["All", "Active", "Investigated", "Closed"].map(
+                  {["All", "ACTIVE", "INVESTIGATED", "CLOSED"].map(
                     (item) => (
 
                       <button
                         key={item}
                         onClick={() => setFilter(item)}
-                        className={`rounded px-2 py-1 text-[9px] transition ${
-                          filter === item
+                        className={`rounded px-2 py-1 text-[9px] transition ${filter === item
                             ? "bg-[#12658c] text-white"
                             : "text-[#718fa0] hover:text-white"
-                        }`}
+                          }`}
                       >
                         {item}
                       </button>
@@ -754,7 +732,7 @@ export default function SpillDatabase() {
                       <td className="px-5 py-4">
 
                         <button
-                          onClick={() => navigate("/incidents")}
+                          onClick={() => navigate(`/incidents?id=${incident.id}`)}
                           className="flex items-center gap-1 text-[10px] font-semibold text-[#20bce9] hover:text-white"
                         >
                           <Eye size={13} />
