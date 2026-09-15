@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+
+:root {
+  font-family: "Inter", sans-serif;
+  color: #102a43;
+  background: #f7fafc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+/* ================================
+   SAGARDRISHTI DARK BLUE THEME
+================================ */
+
+.dark-dashboard {
+  background: #061a2b !important;
+  color: #e6f4ff;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.dark-dashboard aside {
+  background: #071f33 !important;
+  border-color: #173b55 !important;
+}
+
+.dark-dashboard aside h1 {
+  color: #ffffff !important;
+}
+
+.dark-dashboard aside p {
+  color: #7fa6bf !important;
+}
+
+.dark-dashboard aside button {
+  color: #9db8ca !important;
+}
+
+.dark-dashboard aside button:hover {
+  background: #103651 !important;
+  color: #ffffff !important;
+}
+
+.dark-dashboard aside button.bg-\[\#e9f4f8\] {
+  background: #0b5680 !important;
+  color: #ffffff !important;
+}
+
+/* Topbar */
+.dark-dashboard header {
+  background: #071f33 !important;
+  border-color: #173b55 !important;
+}
+
+.dark-dashboard header h2 {
+  color: #ffffff !important;
+}
+
+.dark-dashboard header p {
+  color: #7195ad !important;
+}
+
+.dark-dashboard header input {
+  color: #ffffff !important;
+}
+
+.dark-dashboard header .bg-slate-50 {
+  background: #0c2b43 !important;
+  border-color: #214762 !important;
+}
+
+/* Main text */
+.dark-dashboard main {
+  background: #061a2b !important;
+}
+
+.dark-dashboard main h1 {
+  color: #ffffff !important;
+}
+
+.dark-dashboard main .text-\[\#087ea4\] {
+  color: #35b8ed !important;
+}
+
+.dark-dashboard main .text-\[\#102a43\] {
+  color: #ffffff !important;
+}
+
+.dark-dashboard main .text-slate-500,
+.dark-dashboard main .text-slate-400 {
+  color: #7899ad !important;
+}
+
+/* Cards */
+.dark-dashboard .bg-white {
+  background: #0a253b !important;
+  border-color: #1a4059 !important;
+}
+
+.dark-dashboard .border-slate-200,
+.dark-dashboard .border-slate-100 {
+  border-color: #1a4059 !important;
+}
+
+/* Card headings */
+.dark-dashboard .bg-white h3,
+.dark-dashboard .bg-white p {
+  color: #ffffff;
+}
+
+.dark-dashboard .bg-white .text-slate-400,
+.dark-dashboard .bg-white .text-slate-500 {
+  color: #7f9db0 !important;
+}
+
+/* Icons */
+.dark-dashboard .bg-\[\#e9f4f8\] {
+  background: #0d4565 !important;
+  color: #48c4f2 !important;
+}
+
+/* System operational */
+.dark-dashboard .bg-white\/95 {
+  background: rgba(10, 37, 59, 0.95) !important;
+}
+
+/* Map */
+.dark-dashboard .bg-\[\#dcecf0\] {
+  background: #06283f !important;
+}
+
+/* Incident list hover */
+.dark-dashboard .hover\:bg-slate-50:hover {
+  background: #0d3049 !important;
+}
+
+/* Dividers */
+.dark-dashboard .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #173b55 !important;
+}
+
+/* Buttons */
+.dark-dashboard button {
+  transition: all 0.2s ease;
+}
+
+/* Status pills */
+.dark-dashboard .bg-red-50 {
+  background: #351b26 !important;
+}
+
+.dark-dashboard .bg-amber-50 {
+  background: #3a3018 !important;
+}
+
+.dark-dashboard .bg-blue-50 {
+  background: #102f48 !important;
+}
+
+.dark-dashboard .bg-emerald-50 {
+  background: #10352d !important;
+}
+
+/* Bottom cards */
+.dark-dashboard .text-emerald-500 {
+  color: #39d39f !important;
+}
+
+.dark-dashboard .text-red-400,
+.dark-dashboard .text-red-500 {
+  color: #ff6678 !important;
+}
