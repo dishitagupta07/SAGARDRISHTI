@@ -1,0 +1,17 @@
+torch>=2.0
+torchvision>=0.15
+numpy
+pandas
+geopandas
+shapely
+opencv-python
+matplotlib
+scikit-learn
+tqdm
+Pillow
+
+# --- integration backend (added for the Detect -> Attribute -> Predict API) ---
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+pydantic>=2.0
