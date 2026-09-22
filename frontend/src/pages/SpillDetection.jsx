@@ -29,6 +29,11 @@ export default function SpillDetection() {
   const [detections, setDetections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sarFile, setSarFile] = useState(null);
+  const [detecting, setDetecting] = useState(false);
+  const [mlResult, setMlResult] = useState(null);
+  const [mlError, setMlError] = useState("");
+
 
   useEffect(() => {
     const fetchDetections = async () => {
@@ -69,7 +74,72 @@ export default function SpillDetection() {
 
     fetchDetections();
   }, []);
+  const detectSpill = async () => {
+    if (!sarFile) {
+      setMlError("Please select a SAR image first.");
+      return;
+    }
 
+    try {
+      setDetecting(true);
+      setMlError("");
+      setMlResult(null);
+
+      const formData = new FormData();
+      formData.append("file", sarFile);
+      formData.append("checkpoint_path", "checkpoints/unet_best.pt");
+      formData.append("pixel_size_m", "0");
+
+      const response = await fetch(
+        "http://127.0.0.1:8001/detect-spill",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || "Spill detection failed."
+        );
+      }
+
+      const result = await response.json();
+      setMlResult(result);
+    } catch (err) {
+      console.error("ML spill detection error:", err);
+      setMlError(err.message || "Unable to connect to ML service.");
+    } finally {
+      setDetecting(false);
+    }
+  };
+  <div className="sar-upload-section">
+    <h2>SAR Spill Detection</h2>
+
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) => {
+        setSarFile(e.target.files[0]);
+        setMlError("");
+        setMlResult(null);
+      }}
+    />
+
+    <button
+      onClick={detectSpill}
+      disabled={detecting || !sarFile}
+    >
+      {detecting ? "Detecting..." : "Detect Spill"}
+    </button>
+
+    {mlError && (
+      <p style={{ color: "red" }}>
+        {mlError}
+      </p>
+    )}
+  </div>
   const filteredDetections = detections.filter((item) => {
     const matchesSearch =
       item.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -134,6 +204,7 @@ export default function SpillDetection() {
   };
 
   return (
+
     <div className="min-h-screen bg-[#061b2b] text-white">
       <Sidebar />
 
@@ -180,6 +251,116 @@ export default function SpillDetection() {
         </header>
 
         <main className="p-6">
+
+          {/* SAR UPLOAD */}
+          <div className="mb-5 rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.16em] text-[#63899e]">
+                  AI Analysis
+                </p>
+
+                <h3 className="mt-1 text-base font-semibold">
+                  Upload SAR Image
+                </h3>
+              </div>
+
+              <button
+                onClick={detectSpill}
+                disabled={detecting || !sarFile}
+                className="rounded-lg bg-[#087cae] px-4 py-2.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {detecting ? "Detecting..." : "Detect Spill"}
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  setSarFile(e.target.files[0]);
+                  setMlError("");
+                  setMlResult(null);
+                }}
+                className="w-full rounded-lg border border-[#24485d] bg-[#0a2940] p-3 text-xs text-[#a5bdc9]"
+              />
+            </div>
+
+            {mlError && (
+              <p className="mt-3 text-xs text-[#ff6474]">
+                {mlError}
+              </p>
+            )}
+            {mlResult && (
+              <div className="mt-4 rounded-xl border border-[#24485d] bg-[#071f32] p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[0.16em] text-[#63899e]">
+                      AI Detection Result
+                    </p>
+
+                    <h3 className="mt-1 text-sm font-semibold">
+                      SAR Analysis Complete
+                    </h3>
+                  </div>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-[9px] font-semibold ${mlResult.spill_detected
+                        ? "bg-red-500/15 text-[#ff6474]"
+                        : "bg-[#35d69f]/10 text-[#5ee5b0]"
+                      }`}
+                  >
+                    {mlResult.spill_detected ? "SPILL DETECTED" : "NO SPILL"}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-3">
+
+                  {/* CONFIDENCE */}
+                  <div className="rounded-lg bg-[#0a2940] p-3">
+                    <p className="text-[9px] text-[#63899e]">
+                      Confidence
+                    </p>
+
+                    <p className="mt-1 text-lg font-semibold">
+                      {mlResult.confidence != null
+                        ? `${(mlResult.confidence * 100).toFixed(1)}%`
+                        : "—"}
+                    </p>
+                  </div>
+
+                  {/* SPILL PIXEL FRACTION */}
+                  <div className="rounded-lg bg-[#0a2940] p-3">
+                    <p className="text-[9px] text-[#63899e]">
+                      Spill Coverage
+                    </p>
+
+                    <p className="mt-1 text-lg font-semibold">
+                      {mlResult.spill_pixel_fraction != null
+                        ? `${(mlResult.spill_pixel_fraction * 100).toFixed(2)}%`
+                        : "—"}
+                    </p>
+                  </div>
+
+                  {/* AREA */}
+                  <div className="rounded-lg bg-[#0a2940] p-3">
+                    <p className="text-[9px] text-[#63899e]">
+                      Estimated Area
+                    </p>
+
+                    <p className="mt-1 text-lg font-semibold">
+                      {mlResult.estimated_area_km2 != null
+                        ? `${mlResult.estimated_area_km2} km²`
+                        : "N/A"}
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+            )}
+          </div>
+
 
           {/* STATS */}
           <div className="grid grid-cols-4 gap-4">

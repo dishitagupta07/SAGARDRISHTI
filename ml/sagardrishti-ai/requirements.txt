@@ -1,0 +1,11 @@
+torch>=2.0
+torchvision>=0.15
+numpy
+pandas
+geopandas
+shapely
+opencv-python
+matplotlib
+scikit-learn
+tqdm
+Pillow
