@@ -88,7 +88,7 @@ export default function SpillDetection() {
       const formData = new FormData();
       formData.append("file", sarFile);
       formData.append("checkpoint_path", "checkpoints/unet_best.pt");
-      formData.append("pixel_size_m", "0");
+      formData.append("pixel_size_m", "100");
 
       const response = await fetch(
         "http://127.0.0.1:8001/detect-spill",
