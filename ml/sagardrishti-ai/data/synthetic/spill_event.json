@@ -1,0 +1,9 @@
+{
+  "spill_id": "SPILL_0001",
+  "detected_time": "2026-08-01T14:00:00",
+  "latitude": 13.164373629133578,
+  "longitude": 80.31943921987602,
+  "estimated_area_km2": 4.13,
+  "confidence": 0.81,
+  "true_culprit_mmsi": 200000001
+}

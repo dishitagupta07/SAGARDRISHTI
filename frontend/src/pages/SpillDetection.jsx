@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -26,70 +26,124 @@ export default function SpillDetection() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [selectedDetection, setSelectedDetection] = useState(null);
+  const [detections, setDetections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [sarFile, setSarFile] = useState(null);
+  const [detecting, setDetecting] = useState(false);
+  const [mlResult, setMlResult] = useState(null);
+  const [mlError, setMlError] = useState("");
 
-  const detections = [
-    {
-      id: "SP-026",
-      location: "Bay of Bengal",
-      date: "24 Aug 2025",
-      time: "14:32 UTC",
-      area: "42.6 km²",
-      confidence: 94,
-      status: "Active",
-      type: "Oil Spill",
-      age: "4–7 hours",
-    },
-    {
-      id: "SP-025",
-      location: "Arabian Sea",
-      date: "21 Aug 2025",
-      time: "11:18 UTC",
-      area: "18.4 km²",
-      confidence: 89,
-      status: "Investigated",
-      type: "Oil Spill",
-      age: "6–9 hours",
-    },
-    {
-      id: "SP-024",
-      location: "Bay of Bengal",
-      date: "18 Aug 2025",
-      time: "09:42 UTC",
-      area: "31.8 km²",
-      confidence: 91,
-      status: "Investigated",
-      type: "Oil Spill",
-      age: "3–6 hours",
-    },
-    {
-      id: "SP-023",
-      location: "Indian Ocean",
-      date: "14 Aug 2025",
-      time: "16:05 UTC",
-      area: "12.7 km²",
-      confidence: 82,
-      status: "Closed",
-      type: "Unknown",
-      age: "8–12 hours",
-    },
-    {
-      id: "SP-022",
-      location: "Arabian Sea",
-      date: "09 Aug 2025",
-      time: "12:24 UTC",
-      area: "8.9 km²",
-      confidence: 76,
-      status: "Closed",
-      type: "Natural Seep",
-      age: "10–14 hours",
-    },
-  ];
 
+  useEffect(() => {
+    const fetchDetections = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/incidents/"
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch incidents");
+        }
+
+        const data = await response.json();
+
+        const formattedDetections = data.map((incident) => ({
+          id: incident._id,
+          location: `${incident.latitude}° N · ${incident.longitude}° E`,
+          area: `${incident.area_km2} km²`,
+          confidence: incident.confidence,
+          status: incident.status
+            ? incident.status.charAt(0).toUpperCase() +
+            incident.status.slice(1).toLowerCase()
+            : "—",
+          severity: incident.severity,
+        }));
+
+        setDetections(formattedDetections);
+      } catch (err) {
+        console.error("Error fetching detections:", err);
+        setError("Unable to load detections from backend.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetections();
+  }, []);
+  const detectSpill = async () => {
+    if (!sarFile) {
+      setMlError("Please select a SAR image first.");
+      return;
+    }
+
+    try {
+      setDetecting(true);
+      setMlError("");
+      setMlResult(null);
+
+      const formData = new FormData();
+      formData.append("file", sarFile);
+      formData.append("checkpoint_path", "checkpoints/unet_best.pt");
+      formData.append("pixel_size_m", "0");
+
+      const response = await fetch(
+        "http://127.0.0.1:8001/detect-spill",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || "Spill detection failed."
+        );
+      }
+
+      const result = await response.json();
+      setMlResult(result);
+    } catch (err) {
+      console.error("ML spill detection error:", err);
+      setMlError(err.message || "Unable to connect to ML service.");
+    } finally {
+      setDetecting(false);
+    }
+  };
+  <div className="sar-upload-section">
+    <h2>SAR Spill Detection</h2>
+
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) => {
+        setSarFile(e.target.files[0]);
+        setMlError("");
+        setMlResult(null);
+      }}
+    />
+
+    <button
+      onClick={detectSpill}
+      disabled={detecting || !sarFile}
+    >
+      {detecting ? "Detecting..." : "Detect Spill"}
+    </button>
+
+    {mlError && (
+      <p style={{ color: "red" }}>
+        {mlError}
+      </p>
+    )}
+  </div>
   const filteredDetections = detections.filter((item) => {
     const matchesSearch =
       item.id.toLowerCase().includes(search.toLowerCase()) ||
-      item.location.toLowerCase().includes(search.toLowerCase()) ||
-      item.type.toLowerCase().includes(search.toLowerCase());
+      item.location.toLowerCase().includes(search.toLowerCase());
 
     const matchesFilter =
       filter === "All" || item.status === filter;
@@ -114,13 +168,13 @@ export default function SpillDetection() {
     const rows = detections.map((item) => [
       item.id,
       item.location,
-      item.date,
-      item.time,
+      "—",
+      "—",
       item.area,
       `${item.confidence}%`,
       item.status,
-      item.type,
-      item.age,
+      "—",
+      "—",
     ]);
 
     const csvContent = [
@@ -150,6 +204,7 @@ export default function SpillDetection() {
   };
 
   return (
+
     <div className="min-h-screen bg-[#061b2b] text-white">
       <Sidebar />
 
@@ -196,6 +251,116 @@ export default function SpillDetection() {
         </header>
 
         <main className="p-6">
+
+          {/* SAR UPLOAD */}
+          <div className="mb-5 rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.16em] text-[#63899e]">
+                  AI Analysis
+                </p>
+
+                <h3 className="mt-1 text-base font-semibold">
+                  Upload SAR Image
+                </h3>
+              </div>
+
+              <button
+                onClick={detectSpill}
+                disabled={detecting || !sarFile}
+                className="rounded-lg bg-[#087cae] px-4 py-2.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {detecting ? "Detecting..." : "Detect Spill"}
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  setSarFile(e.target.files[0]);
+                  setMlError("");
+                  setMlResult(null);
+                }}
+                className="w-full rounded-lg border border-[#24485d] bg-[#0a2940] p-3 text-xs text-[#a5bdc9]"
+              />
+            </div>
+
+            {mlError && (
+              <p className="mt-3 text-xs text-[#ff6474]">
+                {mlError}
+              </p>
+            )}
+            {mlResult && (
+              <div className="mt-4 rounded-xl border border-[#24485d] bg-[#071f32] p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[0.16em] text-[#63899e]">
+                      AI Detection Result
+                    </p>
+
+                    <h3 className="mt-1 text-sm font-semibold">
+                      SAR Analysis Complete
+                    </h3>
+                  </div>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-[9px] font-semibold ${mlResult.spill_detected
+                        ? "bg-red-500/15 text-[#ff6474]"
+                        : "bg-[#35d69f]/10 text-[#5ee5b0]"
+                      }`}
+                  >
+                    {mlResult.spill_detected ? "SPILL DETECTED" : "NO SPILL"}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-3">
+
+                  {/* CONFIDENCE */}
+                  <div className="rounded-lg bg-[#0a2940] p-3">
+                    <p className="text-[9px] text-[#63899e]">
+                      Confidence
+                    </p>
+
+                    <p className="mt-1 text-lg font-semibold">
+                      {mlResult.confidence != null
+                        ? `${(mlResult.confidence * 100).toFixed(1)}%`
+                        : "—"}
+                    </p>
+                  </div>
+
+                  {/* SPILL PIXEL FRACTION */}
+                  <div className="rounded-lg bg-[#0a2940] p-3">
+                    <p className="text-[9px] text-[#63899e]">
+                      Spill Coverage
+                    </p>
+
+                    <p className="mt-1 text-lg font-semibold">
+                      {mlResult.spill_pixel_fraction != null
+                        ? `${(mlResult.spill_pixel_fraction * 100).toFixed(2)}%`
+                        : "—"}
+                    </p>
+                  </div>
+
+                  {/* AREA */}
+                  <div className="rounded-lg bg-[#0a2940] p-3">
+                    <p className="text-[9px] text-[#63899e]">
+                      Estimated Area
+                    </p>
+
+                    <p className="mt-1 text-lg font-semibold">
+                      {mlResult.estimated_area_km2 != null
+                        ? `${mlResult.estimated_area_km2} km²`
+                        : "N/A"}
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+            )}
+          </div>
+
 
           {/* STATS */}
           <div className="grid grid-cols-4 gap-4">
@@ -504,11 +669,10 @@ export default function SpillDetection() {
                       <button
                         key={item}
                         onClick={() => setFilter(item)}
-                        className={`rounded px-2 py-1 text-[9px] transition ${
-                          filter === item
-                            ? "bg-[#12658c] text-white"
-                            : "text-[#718fa0] hover:text-white"
-                        }`}
+                        className={`rounded px-2 py-1 text-[9px] transition ${filter === item
+                          ? "bg-[#12658c] text-white"
+                          : "text-[#718fa0] hover:text-white"
+                          }`}
                       >
                         {item}
                       </button>
@@ -582,7 +746,7 @@ export default function SpillDetection() {
                             </p>
 
                             <p className="mt-1 text-[9px] text-[#63899e]">
-                              {item.type}
+                              —
                             </p>
 
                           </div>
@@ -611,11 +775,11 @@ export default function SpillDetection() {
                       <td className="px-5 py-4">
 
                         <p className="text-xs text-[#a1b6c1]">
-                          {item.date}
+                          —
                         </p>
 
                         <p className="mt-1 text-[9px] text-[#63899e]">
-                          {item.time}
+                          —
                         </p>
 
                       </td>
@@ -652,13 +816,12 @@ export default function SpillDetection() {
                       <td className="px-5 py-4">
 
                         <span
-                          className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${
-                            item.status === "Active"
-                              ? "bg-red-500/15 text-[#ff6474]"
-                              : item.status === "Investigated"
+                          className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${item.status === "Active"
+                            ? "bg-red-500/15 text-[#ff6474]"
+                            : item.status === "Investigated"
                               ? "bg-yellow-500/15 text-[#f6c55f]"
                               : "bg-[#35d69f]/10 text-[#5ee5b0]"
-                          }`}
+                            }`}
                         >
                           {item.status}
                         </span>
@@ -670,7 +833,7 @@ export default function SpillDetection() {
                         <button
                           onClick={() => {
                             setSelectedDetection(item);
-                            navigate("/incidents");
+                            navigate(`/incidents?id=${item.id}`);
                           }}
                           className="flex items-center gap-1 text-[10px] font-semibold text-[#20bce9] hover:text-white"
                         >

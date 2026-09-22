@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -13,32 +14,49 @@ import {
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 
-const incidents = [
-  {
-    id: "SP-026",
-    location: "Arabian Sea",
-    status: "Critical",
-    size: "42.6 km²",
-    time: "2h 14m ago",
-  },
-  {
-    id: "SP-024",
-    location: "Bay of Bengal",
-    status: "Monitoring",
-    size: "18.2 km²",
-    time: "6h 42m ago",
-  },
-  {
-    id: "SP-021",
-    location: "Indian Ocean",
-    status: "Investigating",
-    size: "11.8 km²",
-    time: "1d ago",
-  },
-];
-
 export default function Dashboard() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+
+  const [incidents, setIncidents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/incidents/"
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch incidents");
+        }
+
+        const data = await response.json();
+
+        const formattedIncidents = data.map((incident) => ({
+          id: incident._id,
+          location: `${incident.latitude}° N · ${incident.longitude}° E`,
+          status: incident.status?.toUpperCase() || "—",
+          size: `${incident.area_km2} km²`,
+          time: "—",
+        }));
+
+        setIncidents(formattedIncidents);
+      } catch (err) {
+        console.error("Error fetching incidents:", err);
+        setError("Unable to load incidents from backend.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchIncidents();
+  }, []);
+
   return (
     <div className="dark-dashboard min-h-screen">
       <Sidebar />
@@ -202,7 +220,7 @@ export default function Dashboard() {
                 {incidents.map((incident) => (
                   <button
                     key={incident.id}
-                    onClick={() => navigate("/incidents")}
+                    onClick={() => navigate(`/incidents?id=${incident.id}`)}
                     className="w-full text-left p-5 transition hover:bg-slate-50"
                   >
 
@@ -215,13 +233,12 @@ export default function Dashboard() {
                           </span>
 
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${
-                              incident.status === "Critical"
+                            className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${incident.status === "CRITICAL"
                                 ? "bg-red-50 text-red-500"
-                                : incident.status === "Monitoring"
-                                ? "bg-amber-50 text-amber-600"
-                                : "bg-blue-50 text-blue-600"
-                            }`}
+                                : incident.status === "MONITORING"
+                                  ? "bg-amber-50 text-amber-600"
+                                  : "bg-blue-50 text-blue-600"
+                              }`}
                           >
                             {incident.status}
                           </span>
