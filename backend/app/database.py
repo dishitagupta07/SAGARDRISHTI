@@ -13,3 +13,4 @@ db = client["sagardrishti"]
 incidents_collection = db["incidents"]
 
 detections_collection = db["detections"]
+

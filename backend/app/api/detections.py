@@ -37,3 +37,14 @@ def create_detection(detection: Detection):
         "detection_id": str(detection_result.inserted_id),
         "incident_id": str(incident_result.inserted_id)
     }
+
+
+@router.get("/")
+def get_detections():
+
+    detections = list(detections_collection.find())
+
+    for detection in detections:
+        detection["_id"] = str(detection["_id"])
+
+    return detections
