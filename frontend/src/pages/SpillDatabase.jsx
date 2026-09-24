@@ -236,8 +236,8 @@ export default function SpillDatabase() {
               </p>
 
               <p className="mt-1 text-2xl font-bold">
-                126
-              </p>
+  {incidents.length}
+</p>
 
             </div>
 
@@ -263,8 +263,8 @@ export default function SpillDatabase() {
               </p>
 
               <p className="mt-1 text-2xl font-bold">
-                14
-              </p>
+  {incidents.filter((incident) => incident.status === "ACTIVE").length}
+</p>
 
             </div>
 
@@ -448,8 +448,8 @@ export default function SpillDatabase() {
                 </div>
 
                 <span className="rounded-full bg-[#20bce9]/10 px-3 py-1 text-[9px] font-semibold text-[#20bce9]">
-                  126 RECORDS
-                </span>
+  {incidents.length} RECORDS
+</span>
 
               </div>
 
