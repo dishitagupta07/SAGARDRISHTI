@@ -23,40 +23,6 @@ import {
 import Sidebar from "../components/Sidebar";
 
 
-const vessels = [
-  {
-    name: "MV Ocean Star",
-    imo: "IMO 9384721",
-    score: 92,
-    distance: "3.2 km",
-    speed: "12 kn",
-    status: "HIGH",
-  },
-  {
-    name: "MT Coral",
-    imo: "IMO 9216384",
-    score: 78,
-    distance: "6.8 km",
-    speed: "8 kn",
-    status: "MEDIUM",
-  },
-  {
-    name: "MV Sunrise",
-    imo: "IMO 9472163",
-    score: 61,
-    distance: "9.4 km",
-    speed: "11 kn",
-    status: "MEDIUM",
-  },
-  {
-    name: "MV Bright",
-    imo: "IMO 9351842",
-    score: 43,
-    distance: "14.2 km",
-    speed: "10 kn",
-    status: "LOW",
-  },
-];
 
 export default function IncidentDetails() {
   const navigate = useNavigate();
@@ -70,61 +36,103 @@ export default function IncidentDetails() {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [analysisData, setAnalysisData] = useState(null);
+const [analysisLoading, setAnalysisLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchIncidents = async () => {
-      try {
-        setLoading(true);
-        setError("");
+useEffect(() => {
+  const fetchIncidents = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/incidents/"
-        );
+      const response = await fetch(
+        "http://127.0.0.1:8000/api/incidents/"
+      );
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch incidents");
-        }
-
-        const data = await response.json();
-
-        const formattedIncidents = data.map((incident) => ({
-          id: incident._id,
-          location: `${incident.latitude}° N · ${incident.longitude}° E`,
-          description: "Maritime spill incident detected",
-          area: `${incident.area_km2} km²`,
-          confidence: `${incident.confidence}%`,
-          detectionTime: "—",
-          date: "—",
-          drift: "—",
-          risk: incident.severity?.toUpperCase() || "—",
-          status: incident.status?.toUpperCase() || "—",
-          age: "—",
-          coast: "—",
-          coordinates: `${incident.latitude}° N · ${incident.longitude}° E`,
-          wind: "—",
-          current: "—",
-          wave: "—",
-          visibility: "—",
-          oilSignature: "—",
-          classification: "—",
-          perimeter: "—",
-          majorAxis: "—",
-          minorAxis: "—",
-          vessels: 0,
-        }));
-
-        setIncidents(formattedIncidents);
-      } catch (err) {
-        console.error("Error fetching incidents:", err);
-        setError("Unable to load incidents from backend.");
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to fetch incidents");
       }
-    };
 
-    fetchIncidents();
-  }, []);
+      const data = await response.json();
 
+      const formattedIncidents = data.map((incident) => ({
+        id: incident._id,
+
+        location: `${incident.latitude}° N · ${incident.longitude}° E`,
+
+        description: "Maritime spill incident detected",
+
+        area: `${incident.area_km2} km²`,
+
+        confidence:
+          incident.confidence != null
+            ? `${Math.round(incident.confidence * 100)}%`
+            : "—",
+
+        detectionTime: "—",
+        date: "—",
+        drift: "—",
+
+        risk: incident.severity?.toUpperCase() || "—",
+
+        status: incident.status?.toUpperCase() || "—",
+
+        age: "—",
+        coast: "—",
+
+        coordinates: `${incident.latitude}° N · ${incident.longitude}° E`,
+
+        wind: "—",
+        current: "—",
+        wave: "—",
+        visibility: "—",
+
+        oilSignature: "—",
+        classification: "—",
+        perimeter: "—",
+        majorAxis: "—",
+        minorAxis: "—",
+
+        vessels: 0,
+      }));
+
+      setIncidents(formattedIncidents);
+    } catch (err) {
+      console.error("Error fetching incidents:", err);
+      setError("Unable to load incidents from backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchIncidents();
+}, []);
+useEffect(() => {
+  if (!incidentId) return;
+
+  const fetchAnalysis = async () => {
+    try {
+      setAnalysisLoading(true);
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/incidents/${incidentId}/analysis?start_time=2026-09-14%2010%3A00%3A00&end_time=2026-09-14%2010%3A20%3A00`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch incident analysis");
+      }
+
+      const data = await response.json();
+      setAnalysisData(data);
+    } catch (err) {
+      console.error("Error fetching analysis:", err);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
+  fetchAnalysis();
+}, [incidentId]);
   const selectedIncident = incidents.find(
     (incident) => incident.id === incidentId
   );
@@ -483,7 +491,9 @@ export default function IncidentDetails() {
                   Suspect Vessels
                 </p>
                 <p className="mt-1 text-lg font-bold">
-                  {selectedIncident.vessels}
+                  {analysisData?.vessels
+  ? new Set(analysisData.vessels.map((v) => v.vessel_id)).size
+  : "—"}
                 </p>
               </div>
             </div>
@@ -651,8 +661,18 @@ export default function IncidentDetails() {
 
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     {[
-                      ["Wind", selectedIncident.wind],
-                      ["Current", selectedIncident.current],
+                      [
+  "Wind",
+  analysisData?.environment?.length
+    ? `${analysisData.environment[0].wind_speed} m/s · ${analysisData.environment[0].wind_direction}°`
+    : "—",
+],
+[
+  "Current",
+  analysisData?.environment?.length
+    ? `${analysisData.environment[0].current_speed} m/s · ${analysisData.environment[0].current_direction}°`
+    : "—",
+],
                       ["Wave Height", selectedIncident.wave],
                       ["Visibility", selectedIncident.visibility],
                     ].map(([label, value]) => (
@@ -846,78 +866,75 @@ export default function IncidentDetails() {
                     </thead>
 
                     <tbody>
-                      {vessels.map((vessel, index) => (
-                        <tr
-                          key={vessel.name}
-                          className="border-t border-[#173d55] hover:bg-[#0a2940]"
-                        >
-                          <td className="px-4 py-4">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#12364c] text-xs font-bold">
-                              {index + 1}
-                            </span>
-                          </td>
+  {analysisLoading ? (
+    <tr>
+      <td
+        colSpan="7"
+        className="px-4 py-8 text-center text-xs text-[#63899e]"
+      >
+        Loading AIS vessel analysis...
+      </td>
+    </tr>
+  ) : analysisData?.vessels?.length ? (
+    analysisData.vessels.map((vessel, index) => (
+      <tr
+        key={`${vessel.vessel_id}-${vessel.timestamp}`}
+        className="border-t border-[#173d55] hover:bg-[#0a2940]"
+      >
+        <td className="px-4 py-4">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#12364c] text-xs font-bold">
+            {index + 1}
+          </span>
+        </td>
 
-                          <td className="px-4 py-4">
-                            <p className="text-xs font-semibold">
-                              {vessel.name}
-                            </p>
-                            <p className="mt-1 text-[9px] text-[#63899e]">
-                              {vessel.imo}
-                            </p>
-                          </td>
+        <td className="px-4 py-4">
+          <p className="text-xs font-semibold">
+            {vessel.vessel_id}
+          </p>
+          <p className="mt-1 text-[9px] text-[#63899e]">
+            AIS Historical Track
+          </p>
+        </td>
 
-                          <td className="px-4 py-4 text-xs text-[#9bb3bf]">
-                            {vessel.distance}
-                          </td>
+        <td className="px-4 py-4 text-xs text-[#9bb3bf]">
+          {vessel.distance_from_spill_km} km
+        </td>
 
-                          <td className="px-4 py-4 text-xs text-[#9bb3bf]">
-                            {vessel.speed}
-                          </td>
+        <td className="px-4 py-4 text-xs text-[#9bb3bf]">
+          {vessel.speed} kn
+        </td>
 
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 w-20 rounded-full bg-[#17384d]">
-                                <div
-                                  className="h-full rounded-full bg-[#20bce9]"
-                                  style={{
-                                    width: `${vessel.score}%`,
-                                  }}
-                                />
-                              </div>
+        <td className="px-4 py-4 text-xs text-[#9bb3bf]">
+          {vessel.heading}°
+        </td>
 
-                              <span className="text-xs font-semibold">
-                                {vessel.score}%
-                              </span>
-                            </div>
-                          </td>
+        <td className="px-4 py-4">
+          <span className="rounded-full bg-[#20bce9]/10 px-2.5 py-1 text-[9px] font-bold text-[#20bce9]">
+            CANDIDATE
+          </span>
+        </td>
 
-                          <td className="px-4 py-4">
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-[9px] font-bold ${
-                                vessel.status === "HIGH"
-                                  ? "bg-red-500/15 text-[#ff6474]"
-                                  : vessel.status === "MEDIUM"
-                                  ? "bg-yellow-500/15 text-[#f6c55f]"
-                                  : "bg-green-500/15 text-[#5ee5b0]"
-                              }`}
-                            >
-                              {vessel.status}
-                            </span>
-                          </td>
-
-                          <td className="px-4 py-4">
-                            <button
-                              onClick={() =>
-                                navigate("/vessel-intelligence")
-                              }
-                              className="text-[10px] font-semibold text-[#20bce9] hover:text-white"
-                            >
-                              Investigate
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
+        <td className="px-4 py-4">
+          <button
+            onClick={() => navigate("/vessel-intelligence")}
+            className="text-[10px] font-semibold text-[#20bce9] hover:text-white"
+          >
+            Investigate
+          </button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td
+        colSpan="7"
+        className="px-4 py-8 text-center text-xs text-[#63899e]"
+      >
+        No nearby vessels found.
+      </td>
+    </tr>
+  )}
+</tbody>
                   </table>
                 </div>
               </div>
@@ -955,9 +972,10 @@ export default function IncidentDetails() {
                       Forecast Position
                     </p>
                     <p className="mt-1 text-xs font-semibold">
-                      +{selectedIncident.drift.split("·")[1]}{" "}
-                      {selectedIncident.drift.split("·")[0].trim()}
-                    </p>
+  {analysisData?.environment?.length
+    ? "Environment data available"
+    : "Awaiting trajectory model"}
+</p>
                   </div>
 
                   <div className="absolute bottom-4 left-4 rounded-lg border border-[#24485d] bg-[#082238]/90 p-3">
@@ -983,7 +1001,9 @@ export default function IncidentDetails() {
                         Ocean Current
                       </span>
                       <span className="text-xs font-semibold">
-                        {selectedIncident.current}
+                        {analysisData?.environment?.length
+  ? `${analysisData.environment[0].current_speed} m/s · ${analysisData.environment[0].current_direction}°`
+  : "—"}
                       </span>
                     </div>
 
@@ -992,7 +1012,9 @@ export default function IncidentDetails() {
                         Wind
                       </span>
                       <span className="text-xs font-semibold">
-                        {selectedIncident.wind}
+                        {analysisData?.environment?.length
+  ? `${analysisData.environment[0].wind_speed} m/s · ${analysisData.environment[0].wind_direction}°`
+  : "—"}
                       </span>
                     </div>
 
@@ -1001,38 +1023,54 @@ export default function IncidentDetails() {
                         Model Confidence
                       </span>
                       <span className="text-xs font-semibold text-[#35d69f]">
-                        87%
-                      </span>
+  {selectedIncident.confidence}
+</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
-                  <h3 className="text-sm font-semibold">
-                    Forecast
-                  </h3>
+  <h3 className="text-sm font-semibold">
+    Forecast
+  </h3>
 
-                  <div className="mt-5 space-y-4">
-                    {[
-                      ["+6 Hours", "4.8 km"],
-                      ["+12 Hours", "8.7 km"],
-                      ["+24 Hours", "16.2 km"],
-                      ["+48 Hours", "31.5 km"],
-                    ].map(([time, distance]) => (
-                      <div
-                        key={time}
-                        className="flex items-center justify-between"
-                      >
-                        <span className="text-[10px] text-[#718fa0]">
-                          {time}
-                        </span>
-                        <span className="text-xs font-semibold">
-                          {distance}{" "}
-                          {selectedIncident.drift.split("·")[0].trim()}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+  <div className="mt-5 space-y-4">
+    {[
+      ["Current Position", selectedIncident.coordinates],
+      [
+        "Wind Influence",
+        analysisData?.environment?.length
+          ? `${analysisData.environment[0].wind_speed} m/s · ${analysisData.environment[0].wind_direction}°`
+          : "—",
+      ],
+      [
+        "Ocean Current",
+        analysisData?.environment?.length
+          ? `${analysisData.environment[0].current_speed} m/s · ${analysisData.environment[0].current_direction}°`
+          : "—",
+      ],
+      [
+        "Trajectory Status",
+        analysisData?.environment?.length
+          ? "Ready for trajectory modelling"
+          : "Awaiting data",
+      ],
+    ].map(([label, value]) => (
+      <div
+        key={label}
+        className="flex items-center justify-between"
+      >
+        <span className="text-[10px] text-[#718fa0]">
+          {label}
+        </span>
+
+        <span className="text-xs font-semibold text-right">
+          {value}
+        </span>
+      </div>
+    ))}
+  </div>
+
                 </div>
               </div>
             </div>
@@ -1084,11 +1122,28 @@ export default function IncidentDetails() {
 
                 <div className="mt-5 space-y-3">
                   {[
-                    ["AIS Window", "12:00–15:00 UTC"],
-                    ["Vessels Filtered", "47"],
-                    ["Nearby Candidates", selectedIncident.vessels],
-                    ["Top Candidate", "MV Ocean Star"],
-                  ].map(([label, value]) => (
+                    [
+  ["AIS Window", "2026-09-14 10:00–10:20 UTC"],
+
+  [
+    "Vessels Filtered",
+    analysisData?.vessels?.length ?? "—",
+  ],
+
+  [
+    "Nearby Candidates",
+    analysisData?.vessels
+      ? new Set(analysisData.vessels.map((v) => v.vessel_id)).size
+      : "—",
+  ],
+
+  [
+    "Top Candidate",
+    analysisData?.vessels?.length
+      ? analysisData.vessels[0].vessel_id
+      : "—",
+  ],
+].map(([label, value]) => (
                     <div
                       key={label}
                       className="rounded-lg bg-[#0a2940] p-3"

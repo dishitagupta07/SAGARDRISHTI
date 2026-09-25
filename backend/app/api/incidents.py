@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, HTTPException
 from bson import ObjectId
 
@@ -87,6 +88,47 @@ def update_incident(
         "message": "Incident updated successfully",
         "incident_id": incident_id
     }
+@router.get("/{incident_id}/analysis")
+def analyse_incident_endpoint(
+    incident_id: str,
+    start_time: str,
+    end_time: str
+):
+
+    if not ObjectId.is_valid(incident_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid incident ID"
+        )
+
+    incident = incidents_collection.find_one(
+        {"_id": ObjectId(incident_id)}
+    )
+
+    if incident is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Incident not found"
+        )
+
+    try:
+        from backend.app.integrations.analysis import analyse_incident
+
+        result = analyse_incident(
+            spill_data=incident,
+            start_time=start_time,
+            end_time=end_time
+        )
+
+        return result
+
+    except Exception as e:
+        print("ANALYSIS ERROR:")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
 @router.delete("/{incident_id}")
