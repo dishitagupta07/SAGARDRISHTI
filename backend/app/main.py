@@ -14,6 +14,15 @@ app.add_middleware(
 )
 
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.get("/")
 def home():
     return {"message": "SAGARDRISHTI backend is running"}
