@@ -21,41 +21,41 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const fetchIncidents = async () => {
-      try {
-        setLoading(true);
-        setError("");
+useEffect(() => {
+  const fetchIncidents = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/incidents/"
-        );
+      const response = await fetch(
+        "http://127.0.0.1:8000/api/incidents/"
+      );
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch incidents");
-        }
-
-        const data = await response.json();
-
-        const formattedIncidents = data.map((incident) => ({
-          id: incident._id,
-          location: `${incident.latitude}° N · ${incident.longitude}° E`,
-          status: incident.status?.toUpperCase() || "—",
-          size: `${incident.area_km2} km²`,
-          time: "—",
-        }));
-
-        setIncidents(formattedIncidents);
-      } catch (err) {
-        console.error("Error fetching incidents:", err);
-        setError("Unable to load incidents from backend.");
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to fetch incidents");
       }
-    };
 
-    fetchIncidents();
-  }, []);
+      const data = await response.json();
+
+      const formattedIncidents = data.map((incident) => ({
+        id: incident._id,
+        location: `${incident.latitude}° N · ${incident.longitude}° E`,
+        status: incident.status?.toUpperCase() || "—",
+        size: `${incident.area_km2} km²`,
+        time: incident.detection_time || "—",
+      }));
+
+      setIncidents(formattedIncidents);
+    } catch (err) {
+      console.error("Error fetching incidents:", err);
+      setError("Unable to load incidents from backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchIncidents();
+}, []);
 
   return (
     <div className="dark-dashboard min-h-screen">
@@ -214,10 +214,29 @@ export default function Dashboard() {
                 </span>
 
               </div>
+              {loading && (
+  <div className="p-5 text-sm text-slate-400">
+    Loading incidents...
+  </div>
+)}
+
+{error && (
+  <div className="p-5 text-sm text-red-500">
+    {error}
+  </div>
+)}
+
+{!loading && !error && incidents.length === 0 && (
+  <div className="p-5 text-sm text-slate-400">
+    No incidents found.
+  </div>
+)}
 
               <div className="divide-y divide-slate-100">
 
-                {incidents.map((incident) => (
+                {!loading &&
+  !error &&
+  incidents.map((incident) => (
                   <button
                     key={incident.id}
                     onClick={() => navigate(`/incidents?id=${incident.id}`)}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -25,6 +25,12 @@ export default function VesselIntelligence() {
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
+  const [trajectory, setTrajectory] = useState(null);
+  const [trajectoryLoading, setTrajectoryLoading] = useState(false);
+  const [trajectoryError, setTrajectoryError] = useState("");
+  const [attribution, setAttribution] = useState(null);
+  const [attributionLoading, setAttributionLoading] = useState(false);
+  const [attributionError, setAttributionError] = useState("");
 
   const vessels = [
     {
@@ -99,7 +105,33 @@ export default function VesselIntelligence() {
     },
   ];
 
-  const filteredVessels = vessels.filter((vessel) => {
+  const displayVessels =
+    attribution?.ranked_vessels?.length
+      ? attribution.ranked_vessels.map((vessel) => ({
+        name: vessel.vessel_name,
+        imo: `MMSI ${vessel.mmsi}`,
+        flag: "AIS",
+        type: vessel.vessel_type,
+        score: vessel.attribution_pct,
+        risk:
+          vessel.attribution_pct >= 80
+            ? "HIGH"
+            : vessel.attribution_pct >= 60
+              ? "MEDIUM"
+              : "LOW",
+        distance: `${Number(vessel.closest_distance_km).toFixed(1)} km`,
+        speed: "—",
+        heading: "—",
+        anomaly:
+          vessel.evidence?.[0] || "AIS correlation detected",
+        status: "Matched",
+        lastSeen: `${Number(
+          vessel.closest_time_delta_hours
+        ).toFixed(1)} h delta`,
+      }))
+      : vessels;
+
+  const filteredVessels = displayVessels.filter((vessel) => {
     const query = search.toLowerCase();
 
     const matchesSearch =
@@ -131,7 +163,95 @@ export default function VesselIntelligence() {
     if (score >= 60) return "text-[#f6c55f]";
     return "text-[#35d69f]";
   };
+  const fetchTrajectory = async () => {
+    try {
+      setTrajectoryLoading(true);
+      setTrajectoryError("");
 
+      const response = await fetch(
+        "http://127.0.0.1:8001/predict-trajectory",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            origin_lat: 19.0760,
+            origin_lon: 72.8777,
+            forward_hours: 48,
+            backward_hours: 12,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        throw new Error(
+          errorData.detail || "Trajectory prediction failed."
+        );
+      }
+
+      const result = await response.json();
+
+      console.log("Trajectory result:", result);
+
+      setTrajectory(result);
+    } catch (error) {
+      console.error("Trajectory error:", error);
+      setTrajectoryError(
+        error.message || "Unable to connect to trajectory service."
+      );
+    } finally {
+      setTrajectoryLoading(false);
+    }
+  };
+  const fetchAttribution = async () => {
+    try {
+      setAttributionLoading(true);
+      setAttributionError("");
+
+      const response = await fetch(
+        "http://127.0.0.1:8001/attribute-vessel",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ais_csv_path: "data/synthetic/ais_tracks.csv",
+            spill_lat: 13.164373629133578,
+            spill_lon: 80.31943921987602,
+            spill_time: "2026-08-01T14:00:00",
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || "Vessel attribution failed."
+        );
+      }
+
+      const result = await response.json();
+
+      console.log("Attribution result:", result);
+
+      setAttribution(result);
+    } catch (error) {
+      console.error("Attribution error:", error);
+      setAttributionError(
+        error.message || "Unable to connect to attribution service."
+      );
+    } finally {
+      setAttributionLoading(false);
+    }
+  }; useEffect(() => {
+    fetchTrajectory();
+    fetchAttribution();
+  }, []);
+  const topVessel = attribution?.ranked_vessels?.[0];
   return (
     <div className="min-h-screen bg-[#061b2b] text-white">
       <Sidebar />
@@ -283,7 +403,7 @@ export default function VesselIntelligence() {
           </div>
 
           {/* TOP SUSPECT */}
-          <div className="mt-5 grid grid-cols-[1.15fr_1fr] gap-5">
+          <div className="mt-5 grid min-w-0 grid-cols-[minmax(0,1.75fr)_minmax(360px,1.25fr)] gap-5">
 
             {/* VESSEL MAP */}
             <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
@@ -328,11 +448,67 @@ export default function VesselIntelligence() {
                 <div className="absolute left-[47%] top-[45%] h-14 w-24 rotate-[-20deg] rounded-[50%] bg-[#ff5265]/10" />
 
                 {/* TRAJECTORY */}
-                <div className="absolute left-[25%] top-[67%] h-[2px] w-[43%] rotate-[-25deg] origin-left bg-[#20bce9]/70" />
+                {/* ML TRAJECTORY */}
+                {trajectory && (
+                  <svg
+                    className="absolute inset-0 h-full w-full pointer-events-none"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    {/* Forward trajectory */}
+                    {trajectory.forward?.length > 1 && (
+                      <>
+                        <polyline
+                          points={trajectory.forward
+                            .map((point, index) => {
+                              const x = 25 + index * 2.2;
+                              const y = 68 - index * 0.8;
+                              return `${x},${y}`;
+                            })
+                            .join(" ")}
+                          fill="none"
+                          stroke="#5cf6dc"
+                          strokeWidth="0.6"
+                          strokeDasharray="2 1"
+                          strokeLinecap="round"
+                        />
 
-                <div className="absolute left-[28%] top-[65%] h-2 w-2 rounded-full bg-[#20bce9]" />
-                <div className="absolute left-[38%] top-[59%] h-2 w-2 rounded-full bg-[#20bce9]" />
-                <div className="absolute left-[48%] top-[53%] h-2 w-2 rounded-full bg-[#20bce9]" />
+                        {trajectory.forward.map((point, index) => {
+                          const x = 25 + index * 2.2;
+                          const y = 68 - index * 0.8;
+
+                          return (
+                            <circle
+                              key={`forward-${index}`}
+                              cx={x}
+                              cy={y}
+                              r="0.9"
+                              fill="#5cf6dc"
+                            />
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {/* Backward trajectory */}
+                    {trajectory.backward?.length > 1 && (
+                      <polyline
+                        points={trajectory.backward
+                          .map((point, index) => {
+                            const x = 25 - index * 1.8;
+                            const y = 68 + index * 1.2;
+                            return `${x},${y}`;
+                          })
+                          .join(" ")}
+                        fill="none"
+                        stroke="#8b5cf6"
+                        strokeWidth="0.6"
+                        strokeDasharray="2 1"
+                        strokeLinecap="round"
+                      />
+                    )}
+                  </svg>
+                )}
 
                 {/* VESSEL DOTS */}
                 <div className="absolute left-[62%] top-[31%] flex items-center gap-1">
@@ -437,11 +613,12 @@ export default function VesselIntelligence() {
 
                     <div>
                       <p className="text-sm font-bold">
-                        MV Ocean Star
+                        {topVessel?.vessel_name || "Analyzing..."}
                       </p>
 
                       <p className="mt-1 text-[9px] text-[#63899e]">
-                        IMO 9384721 · India · Tanker
+                        MMSI {topVessel?.mmsi || "—"} ·{" "}
+                        {topVessel?.vessel_type || "—"}
                       </p>
                     </div>
 
@@ -449,11 +626,13 @@ export default function VesselIntelligence() {
 
                   <div className="text-right">
                     <p className="text-2xl font-bold text-[#ff6474]">
-                      92%
+                      {topVessel
+                        ? `${topVessel.attribution_pct.toFixed(1)}%`
+                        : "—"}
                     </p>
 
                     <p className="text-[8px] uppercase tracking-wider text-[#63899e]">
-                      Suspect Score
+                      Attribution Score
                     </p>
                   </div>
 
@@ -462,7 +641,9 @@ export default function VesselIntelligence() {
                 <div className="mt-5 h-2 rounded-full bg-[#17384d]">
                   <div
                     className="h-full rounded-full bg-[#ff5265]"
-                    style={{ width: "92%" }}
+                    style={{
+                      width: `${topVessel?.attribution_pct || 0}%`,
+                    }}
                   />
                 </div>
 
@@ -474,7 +655,9 @@ export default function VesselIntelligence() {
                     </p>
 
                     <p className="mt-1 text-sm font-semibold">
-                      3.2 km
+                      {topVessel
+                        ? `${topVessel.closest_distance_km.toFixed(1)} km`
+                        : "—"}
                     </p>
                   </div>
 
@@ -484,17 +667,19 @@ export default function VesselIntelligence() {
                     </p>
 
                     <p className="mt-1 text-sm font-semibold">
-                      12 kn
+                      12 km/h
                     </p>
                   </div>
 
                   <div className="rounded-lg bg-[#082238] p-3">
                     <p className="text-[8px] uppercase text-[#63899e]">
-                      Heading
+                      Time Delta
                     </p>
 
                     <p className="mt-1 text-sm font-semibold">
-                      NE
+                      {topVessel
+                        ? `${Number(topVessel.closest_time_delta_hours).toFixed(1)} hrs`
+                        : "—"}
                     </p>
                   </div>
 
@@ -504,7 +689,7 @@ export default function VesselIntelligence() {
                     </p>
 
                     <p className="mt-1 text-sm font-semibold">
-                      14:28 UTC
+                      {topVessel ? "Matched" : "—"}
                     </p>
                   </div>
 
@@ -519,321 +704,372 @@ export default function VesselIntelligence() {
                     />
 
                     <p className="text-[10px] font-semibold">
-                      Trajectory overlap detected
+                      Attribution Evidence
                     </p>
                   </div>
 
                   <p className="mt-1 text-[9px] leading-relaxed text-[#718fa0]">
-                    Vessel trajectory intersects the estimated
-                    spill origin window and drift corridor.
+                    {topVessel?.evidence?.length
+                      ? topVessel.evidence.join(" ")
+                      : attributionLoading
+                        ? "Analyzing AIS evidence..."
+                        : "No evidence available."}
                   </p>
 
+                  <button
+                    onClick={() => navigate("/incidents")}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#087cae] py-2.5 text-[10px] font-semibold text-white transition hover:bg-[#0a91c9]"
+                  >
+                    Investigate Vessel
+                    <ChevronRight size={13} />
+                  </button>
+
                 </div>
-
-                <button
-                  onClick={() => navigate("/incidents")}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#087cae] py-2.5 text-[10px] font-semibold text-white transition hover:bg-[#0a91c9]"
-                >
-                  Investigate Vessel
-                  <ChevronRight size={13} />
-                </button>
-
-              </div>
-            </div>
-
-          </div>
-
-          {/* VESSEL TABLE */}
-          <div className="mt-5 rounded-xl border border-[#1a3e55] bg-[#082238]">
-
-            <div className="flex items-center justify-between border-b border-[#173d55] p-5">
-
-              <div>
-                <p className="text-[9px] uppercase tracking-[0.16em] text-[#63899e]">
-                  Correlation Results
-                </p>
-
-                <h3 className="mt-1 text-base font-semibold">
-                  Suspect Vessel Ranking
-                </h3>
               </div>
 
-              <div className="flex items-center gap-2">
-
-                <div className="relative">
-                  <Search
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[#63899e]"
-                  />
-
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search vessels..."
-                    className="h-8 w-48 rounded-lg border border-[#24485d] bg-[#0a2940] pl-8 pr-3 text-[10px] text-white outline-none placeholder:text-[#63899e] focus:border-[#168fc0]"
-                  />
-                </div>
-
-                <div className="flex items-center gap-1 rounded-lg border border-[#24485d] bg-[#0a2940] p-1">
-
-                  <Filter
-                    size={13}
-                    className="ml-1 text-[#63899e]"
-                  />
-
-                  {["All", "HIGH", "MEDIUM", "LOW"].map(
-                    (item) => (
-                      <button
-                        key={item}
-                        onClick={() => setFilter(item)}
-                        className={`rounded px-2 py-1 text-[9px] transition ${
-                          filter === item
-                            ? "bg-[#12658c] text-white"
-                            : "text-[#718fa0] hover:text-white"
-                        }`}
-                      >
-                        {item}
-                      </button>
-                    )
-                  )}
-
-                </div>
-
-              </div>
             </div>
 
-            <div className="overflow-hidden">
+            {/* VESSEL TABLE */}
+            <div className="col-span-2 row-start-1 mt-5 min-w-0 overflow-hidden rounded-xl border border-[#1a3e55] bg-[#082238]">
 
-              <table className="w-full">
-
-                <thead>
-                  <tr className="bg-[#0a2940] text-left">
-
-                    <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
-                      Vessel
-                    </th>
-
-                    <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
-                      Type
-                    </th>
-
-                    <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
-                      Distance
-                    </th>
-
-                    <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
-                      AIS Status
-                    </th>
-
-                    <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
-                      Anomaly
-                    </th>
-
-                    <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
-                      Score
-                    </th>
-
-                    <th className="px-5 py-3" />
-
-                  </tr>
-                </thead>
-
-                <tbody>
-
-                  {filteredVessels.map((vessel, index) => (
-
-                    <tr
-                      key={vessel.imo}
-                      className="border-t border-[#173d55] transition hover:bg-[#0a2940]"
-                    >
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex items-center gap-3">
-
-                          <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-[#0b3047]">
-
-                            <Ship
-                              size={15}
-                              className={
-                                index === 0
-                                  ? "text-[#ff6474]"
-                                  : "text-[#20bce9]"
-                              }
-                            />
-
-                            {index === 0 && (
-                              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#ff5265]" />
-                            )}
-
-                          </div>
-
-                          <div>
-                            <p className="text-xs font-semibold">
-                              {vessel.name}
-                            </p>
-
-                            <p className="mt-1 text-[9px] text-[#63899e]">
-                              {vessel.imo} · {vessel.flag}
-                            </p>
-                          </div>
-
-                        </div>
-
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span className="text-xs text-[#a1b6c1]">
-                          {vessel.type}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex items-center gap-2">
-                          <MapPin
-                            size={12}
-                            className="text-[#63899e]"
-                          />
-
-                          <span className="text-xs font-semibold">
-                            {vessel.distance}
-                          </span>
-                        </div>
-
-                      </td>
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex items-center gap-2">
-
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#35d69f]" />
-
-                          <div>
-                            <p className="text-[10px] text-[#a1b6c1]">
-                              {vessel.status}
-                            </p>
-
-                            <p className="mt-0.5 text-[8px] text-[#63899e]">
-                              {vessel.lastSeen}
-                            </p>
-                          </div>
-
-                        </div>
-
-                      </td>
-
-                      <td className="px-5 py-4">
-
-                        <span className="text-[10px] text-[#a1b6c1]">
-                          {vessel.anomaly}
-                        </span>
-
-                      </td>
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex items-center gap-2">
-
-                          <div className="h-1.5 w-12 rounded-full bg-[#17384d]">
-                            <div
-                              className={`h-full rounded-full ${
-                                vessel.score >= 80
-                                  ? "bg-[#ff5265]"
-                                  : vessel.score >= 60
-                                  ? "bg-[#f6b52d]"
-                                  : "bg-[#35d69f]"
-                              }`}
-                              style={{
-                                width: `${vessel.score}%`,
-                              }}
-                            />
-                          </div>
-
-                          <span
-                            className={`text-xs font-bold ${getScoreColor(
-                              vessel.score
-                            )}`}
-                          >
-                            {vessel.score}%
-                          </span>
-
-                        </div>
-
-                      </td>
-
-                      <td className="px-5 py-4">
-
-                        <button
-                          onClick={() => navigate("/incidents")}
-                          className="flex items-center gap-1 text-[10px] font-semibold text-[#20bce9] hover:text-white"
-                        >
-                          <Eye size={13} />
-                          View
-                        </button>
-
-                      </td>
-
-                    </tr>
-
-                  ))}
-
-                </tbody>
-
-              </table>
-
-              {filteredVessels.length === 0 && (
-                <div className="py-12 text-center">
-
-                  <AlertTriangle
-                    size={20}
-                    className="mx-auto text-[#63899e]"
-                  />
-
-                  <p className="mt-2 text-xs text-[#718fa0]">
-                    No vessels found
-                  </p>
-
-                </div>
-              )}
-
-            </div>
-          </div>
-
-          {/* ANALYSIS FOOTER */}
-          <div className="mt-5 grid grid-cols-3 gap-4">
-
-            <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-4">
-
-              <div className="flex items-center gap-3">
-
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0a3047]">
-                  <CheckCircle2
-                    size={16}
-                    className="text-[#35d69f]"
-                  />
-                </div>
+              <div className="flex items-center justify-between border-b border-[#173d55] p-5">
 
                 <div>
-                  <p className="text-xs font-semibold">
-                    AIS Correlation Complete
+                  <p className="text-[9px] uppercase tracking-[0.16em] text-[#63899e]">
+                    Correlation Results
                   </p>
 
-                  <p className="mt-0.5 text-[9px] text-[#63899e]">
-                    Historical tracks matched against spill origin.
-                  </p>
+                  <h3 className="mt-1 text-base font-semibold">
+                    Suspect Vessel Ranking
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+
+                  <div className="relative">
+                    <Search
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#63899e]"
+                    />
+
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search vessels..."
+                      className="h-8 w-48 rounded-lg border border-[#24485d] bg-[#0a2940] pl-8 pr-3 text-[10px] text-white outline-none placeholder:text-[#63899e] focus:border-[#168fc0]"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 rounded-lg border border-[#24485d] bg-[#0a2940] p-1">
+
+                    <Filter
+                      size={13}
+                      className="ml-1 text-[#63899e]"
+                    />
+
+                    {["All", "HIGH", "MEDIUM", "LOW"].map(
+                      (item) => (
+                        <button
+                          key={item}
+                          onClick={() => setFilter(item)}
+                          className={`rounded px-2 py-1 text-[9px] transition ${filter === item
+                            ? "bg-[#12658c] text-white"
+                            : "text-[#718fa0] hover:text-white"
+                            }`}
+                        >
+                          {item}
+                        </button>
+                      )
+                    )}
+
+                  </div>
+
+                </div>
+              </div>
+
+              <div className="overflow-hidden">
+
+                <table className="w-full table-fixed">
+
+                  <thead>
+                    <tr className="bg-[#0a2940] text-left">
+
+                      <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
+                        Vessel
+                      </th>
+
+                      <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
+                        Type
+                      </th>
+
+                      <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
+                        Distance
+                      </th>
+
+                      <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
+                        AIS Status
+                      </th>
+
+                      <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
+                        Anomaly
+                      </th>
+
+                      <th className="px-5 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
+                        Score
+                      </th>
+
+                      <th className="px-5 py-3" />
+
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    {filteredVessels.map((vessel, index) => (
+
+                      <tr
+                        key={vessel.imo}
+                        className="border-t border-[#173d55] transition hover:bg-[#0a2940]"
+                      >
+
+                        <td className="px-5 py-4">
+
+                          <div className="flex items-center gap-3">
+
+                            <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-[#0b3047]">
+
+                              <Ship
+                                size={15}
+                                className={
+                                  index === 0
+                                    ? "text-[#ff6474]"
+                                    : "text-[#20bce9]"
+                                }
+                              />
+
+                              {index === 0 && (
+                                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#ff5265]" />
+                              )}
+
+                            </div>
+
+                            <div>
+                              <p className="text-xs font-semibold">
+                                {vessel.name}
+                              </p>
+
+                              <p className="mt-1 text-[9px] text-[#63899e]">
+                                {vessel.imo} · {vessel.flag}
+                              </p>
+                            </div>
+
+                          </div>
+
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="text-xs text-[#a1b6c1]">
+                            {vessel.type}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+
+                          <div className="flex items-center gap-2">
+                            <MapPin
+                              size={12}
+                              className="text-[#63899e]"
+                            />
+
+                            <span className="text-xs font-semibold">
+                              {vessel.distance}
+                            </span>
+                          </div>
+
+                        </td>
+
+                        <td className="px-5 py-4">
+
+                          <div className="flex items-center gap-2">
+
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#35d69f]" />
+
+                            <div>
+                              <p className="text-[10px] text-[#a1b6c1]">
+                                {vessel.status}
+                              </p>
+
+                              <p className="mt-0.5 text-[8px] text-[#63899e]">
+                                {vessel.lastSeen}
+                              </p>
+                            </div>
+
+                          </div>
+
+                        </td>
+
+                        <td className="px-5 py-4">
+
+                          <span className="text-[10px] text-[#a1b6c1]">
+                            {vessel.anomaly}
+                          </span>
+
+                        </td>
+
+                        <td className="px-5 py-4">
+
+                          <div className="flex items-center gap-2">
+
+                            <div className="h-1.5 w-12 rounded-full bg-[#17384d]">
+                              <div
+                                className={`h-full rounded-full ${vessel.score >= 80
+                                  ? "bg-[#ff5265]"
+                                  : vessel.score >= 60
+                                    ? "bg-[#f6b52d]"
+                                    : "bg-[#35d69f]"
+                                  }`}
+                                style={{
+                                  width: `${vessel.score}%`,
+                                }}
+                              />
+                            </div>
+
+                            <span
+                              className={`text-xs font-bold ${getScoreColor(
+                                vessel.score
+                              )}`}
+                            >
+                              {vessel.score}%
+                            </span>
+
+                          </div>
+
+                        </td>
+
+                        <td className="px-5 py-4">
+
+                          <button
+                            onClick={() => navigate("/incidents")}
+                            className="flex items-center gap-1 text-[10px] font-semibold text-[#20bce9] hover:text-white"
+                          >
+                            <Eye size={13} />
+                            View
+                          </button>
+
+                        </td>
+
+                      </tr>
+
+                    ))}
+
+                  </tbody>
+
+                </table>
+
+                {filteredVessels.length === 0 && (
+                  <div className="py-12 text-center">
+
+                    <AlertTriangle
+                      size={20}
+                      className="mx-auto text-[#63899e]"
+                    />
+
+                    <p className="mt-2 text-xs text-[#718fa0]">
+                      No vessels found
+                    </p>
+
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+            {/* ANALYSIS FOOTER */}
+            <div className="col-span-2 row-start-3 mt-5 grid min-w-0 grid-cols-3 gap-4">
+
+              <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-4">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0a3047]">
+                    <CheckCircle2
+                      size={16}
+                      className="text-[#35d69f]"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold">
+                      AIS Correlation Complete
+                    </p>
+
+                    <p className="mt-0.5 text-[9px] text-[#63899e]">
+                      Historical tracks matched against spill origin.
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+
+              <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-4">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0a3047]">
+                    <Navigation
+                      size={16}
+                      className="text-[#20bce9]"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold">
+                      Drift Corridor Matched
+                    </p>
+
+                    <p className="mt-0.5 text-[9px] text-[#63899e]">
+                      Wind and current direction considered.
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+
+              <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-4">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0a3047]">
+                    <History
+                      size={16}
+                      className="text-[#a875ff]"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold">
+                      Historical AIS Available
+                    </p>
+
+                    <p className="mt-0.5 text-[9px] text-[#63899e]">
+                      Vessel movement history linked to this incident.
+                    </p>
+                  </div>
+
                 </div>
 
               </div>
 
             </div>
 
-            <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-4">
-
+            {/* BOTTOM */}
+            <div className="col-span-2 row-start-4 mt-5 flex min-w-0 items-center justify-between overflow-hidden rounded-xl border border-[#1a3e55] bg-[#082238] px-5 py-4">
               <div className="flex items-center gap-3">
 
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0a3047]">
-                  <Navigation
+                  <Clock
                     size={16}
                     className="text-[#20bce9]"
                   />
@@ -841,77 +1077,26 @@ export default function VesselIntelligence() {
 
                 <div>
                   <p className="text-xs font-semibold">
-                    Drift Corridor Matched
+                    AIS Monitoring Active
                   </p>
 
                   <p className="mt-0.5 text-[9px] text-[#63899e]">
-                    Wind and current direction considered.
+                    Vessel positions are continuously correlated with
+                    active spill incidents.
                   </p>
                 </div>
 
               </div>
 
-            </div>
+              <button
+                onClick={() => navigate("/digital-twin")}
+                className="flex items-center gap-2 rounded-lg bg-[#087cae] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#0a91c9]"
+              >
+                <Waves size={14} />
+                Open Maritime View
+              </button>
 
-            <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-4">
-
-              <div className="flex items-center gap-3">
-
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0a3047]">
-                  <History
-                    size={16}
-                    className="text-[#a875ff]"
-                  />
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold">
-                    Historical AIS Available
-                  </p>
-
-                  <p className="mt-0.5 text-[9px] text-[#63899e]">
-                    Vessel movement history linked to this incident.
-                  </p>
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* BOTTOM */}
-          <div className="mt-5 flex items-center justify-between rounded-xl border border-[#1a3e55] bg-[#082238] px-5 py-4">
-
-            <div className="flex items-center gap-3">
-
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0a3047]">
-                <Clock
-                  size={16}
-                  className="text-[#20bce9]"
-                />
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold">
-                  AIS Monitoring Active
-                </p>
-
-                <p className="mt-0.5 text-[9px] text-[#63899e]">
-                  Vessel positions are continuously correlated with
-                  active spill incidents.
-                </p>
-              </div>
-
-            </div>
-
-            <button
-              onClick={() => navigate("/digital-twin")}
-              className="flex items-center gap-2 rounded-lg bg-[#087cae] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#0a91c9]"
-            >
-              <Waves size={14} />
-              Open Maritime View
-            </button>
+                       </div>
 
           </div>
 
