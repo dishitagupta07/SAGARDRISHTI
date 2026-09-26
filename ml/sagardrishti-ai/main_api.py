@@ -38,7 +38,7 @@ sys.path.insert(0, os.path.join(BASE_DIR, "trajectory_prediction"))
 app = FastAPI(title="SAGARDRISHTI AI/ML Service", version="0.1")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "https://sagardrishti-uxji.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
