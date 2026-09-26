@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
@@ -22,194 +22,6 @@ import {
 
 import Sidebar from "../components/Sidebar";
 
-const incidents = [
-  {
-    id: "SP-026",
-    location: "Bay of Bengal",
-    description: "Oil spill detected in the Bay of Bengal",
-    area: "42.6 km²",
-    confidence: "94%",
-    detectionTime: "14:32 UTC",
-    date: "24 Aug 2025",
-    drift: "NE · 12 km",
-    risk: "HIGH",
-    status: "ACTIVE",
-    age: "4–7 hours",
-    coast: "18.4 km",
-    coordinates: "12.680° N · 80.580° E",
-    wind: "NE · 18 km/h",
-    current: "NE · 0.7 m/s",
-    wave: "1.4 m",
-    visibility: "8.2 km",
-    oilSignature: "91%",
-    classification: "89%",
-    perimeter: "31.8 km",
-    majorAxis: "12.4 km",
-    minorAxis: "4.7 km",
-    vessels: 7,
-  },
-  {
-    id: "SP-025",
-    location: "Arabian Sea",
-    description: "Oil spill detected in the Arabian Sea",
-    area: "18.4 km²",
-    confidence: "89%",
-    detectionTime: "11:18 UTC",
-    date: "21 Aug 2025",
-    drift: "NW · 9 km",
-    risk: "MEDIUM",
-    status: "INVESTIGATED",
-    age: "6–9 hours",
-    coast: "26.7 km",
-    coordinates: "15.420° N · 68.310° E",
-    wind: "NW · 15 km/h",
-    current: "NW · 0.5 m/s",
-    wave: "1.8 m",
-    visibility: "7.6 km",
-    oilSignature: "87%",
-    classification: "84%",
-    perimeter: "19.6 km",
-    majorAxis: "8.2 km",
-    minorAxis: "3.4 km",
-    vessels: 5,
-  },
-  {
-    id: "SP-024",
-    location: "Bay of Bengal",
-    description: "Oil spill detected in the Bay of Bengal",
-    area: "31.8 km²",
-    confidence: "91%",
-    detectionTime: "09:42 UTC",
-    date: "18 Aug 2025",
-    drift: "E · 15 km",
-    risk: "HIGH",
-    status: "INVESTIGATED",
-    age: "3–6 hours",
-    coast: "21.3 km",
-    coordinates: "14.180° N · 82.460° E",
-    wind: "E · 16 km/h",
-    current: "E · 0.6 m/s",
-    wave: "1.6 m",
-    visibility: "9.1 km",
-    oilSignature: "90%",
-    classification: "88%",
-    perimeter: "27.4 km",
-    majorAxis: "10.8 km",
-    minorAxis: "4.1 km",
-    vessels: 9,
-  },
-  {
-    id: "SP-023",
-    location: "Indian Ocean",
-    description: "Unclassified maritime spill detected in the Indian Ocean",
-    area: "12.7 km²",
-    confidence: "82%",
-    detectionTime: "16:05 UTC",
-    date: "14 Aug 2025",
-    drift: "SW · 7 km",
-    risk: "LOW",
-    status: "CLOSED",
-    age: "8–12 hours",
-    coast: "42.5 km",
-    coordinates: "8.920° N · 76.240° E",
-    wind: "SW · 12 km/h",
-    current: "SW · 0.4 m/s",
-    wave: "1.2 m",
-    visibility: "10.2 km",
-    oilSignature: "76%",
-    classification: "72%",
-    perimeter: "14.8 km",
-    majorAxis: "6.4 km",
-    minorAxis: "2.8 km",
-    vessels: 4,
-  },
-  {
-    id: "SP-022",
-    location: "Arabian Sea",
-    description: "Natural seep signature detected in the Arabian Sea",
-    area: "8.9 km²",
-    confidence: "76%",
-    detectionTime: "12:24 UTC",
-    date: "09 Aug 2025",
-    drift: "SE · 5 km",
-    risk: "LOW",
-    status: "CLOSED",
-    age: "10–14 hours",
-    coast: "37.8 km",
-    coordinates: "18.640° N · 66.920° E",
-    wind: "SE · 10 km/h",
-    current: "SE · 0.3 m/s",
-    wave: "1.1 m",
-    visibility: "11.4 km",
-    oilSignature: "68%",
-    classification: "64%",
-    perimeter: "11.2 km",
-    majorAxis: "4.9 km",
-    minorAxis: "2.1 km",
-    vessels: 2,
-  },
-  {
-    id: "SP-021",
-    location: "Bay of Bengal",
-    description: "Oil spill detected in the Bay of Bengal",
-    area: "25.3 km²",
-    confidence: "88%",
-    detectionTime: "10:16 UTC",
-    date: "03 Aug 2025",
-    drift: "NE · 10 km",
-    risk: "MEDIUM",
-    status: "INVESTIGATED",
-    age: "5–8 hours",
-    coast: "24.1 km",
-    coordinates: "13.740° N · 81.820° E",
-    wind: "NE · 14 km/h",
-    current: "NE · 0.5 m/s",
-    wave: "1.5 m",
-    visibility: "8.8 km",
-    oilSignature: "85%",
-    classification: "82%",
-    perimeter: "23.6 km",
-    majorAxis: "9.5 km",
-    minorAxis: "3.9 km",
-    vessels: 6,
-  },
-];
-
-const vessels = [
-  {
-    name: "MV Ocean Star",
-    imo: "IMO 9384721",
-    score: 92,
-    distance: "3.2 km",
-    speed: "12 kn",
-    status: "HIGH",
-  },
-  {
-    name: "MT Coral",
-    imo: "IMO 9216384",
-    score: 78,
-    distance: "6.8 km",
-    speed: "8 kn",
-    status: "MEDIUM",
-  },
-  {
-    name: "MV Sunrise",
-    imo: "IMO 9472163",
-    score: 61,
-    distance: "9.4 km",
-    speed: "11 kn",
-    status: "MEDIUM",
-  },
-  {
-    name: "MV Bright",
-    imo: "IMO 9351842",
-    score: 43,
-    distance: "14.2 km",
-    speed: "10 kn",
-    status: "LOW",
-  },
-];
-
 export default function IncidentDetails() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -218,6 +30,104 @@ export default function IncidentDetails() {
 
   const [activeTab, setActiveTab] = useState("overview");
   const [search, setSearch] = useState("");
+  const [incidents, setIncidents] = useState([]);
+
+  useEffect(() => {
+    fetch("https://sagardrishti-uxji.onrender.com/api/incidents/")
+      .then((res) => res.json())
+      .then((data) => {
+        const formattedIncidents = data.map((incident, index) => ({
+          id: `SP-${26 - index}`,
+
+          location:
+            incident.longitude > 80
+              ? "Bay of Bengal"
+              : "Arabian Sea",
+
+          description:
+            "Oil spill detected through satellite-based maritime surveillance",
+
+          area: `${incident.area_km2} km²`,
+
+          confidence: `${Math.round(incident.confidence * 100)}%`,
+
+          detectionTime: `${10 + index}:24 UTC`,
+
+          date: "26 Sep 2026",
+
+          drift:
+            index % 3 === 0
+              ? "NE · 12 km"
+              : index % 3 === 1
+              ? "NW · 9 km"
+              : "E · 15 km",
+
+          risk: incident.severity.toUpperCase(),
+
+          status: incident.status.toUpperCase(),
+
+          age:
+            index % 3 === 0
+              ? "4–7 hours"
+              : index % 3 === 1
+              ? "6–9 hours"
+              : "3–6 hours",
+
+          coast: `${(18 + index * 2.3).toFixed(1)} km`,
+
+          coordinates:
+            `${incident.latitude.toFixed(3)}° N · ${incident.longitude.toFixed(3)}° E`,
+
+          wind:
+            index % 3 === 0
+              ? "NE · 18 km/h"
+              : index % 3 === 1
+              ? "NW · 15 km/h"
+              : "E · 16 km/h",
+
+          current:
+            index % 3 === 0
+              ? "NE · 0.7 m/s"
+              : index % 3 === 1
+              ? "NW · 0.5 m/s"
+              : "E · 0.6 m/s",
+
+          wave:
+            `${(1.1 + (index % 5) * 0.2).toFixed(1)} m`,
+
+          visibility:
+            `${(7.5 + (index % 5) * 0.7).toFixed(1)} km`,
+
+          oilSignature:
+            `${Math.max(
+              60,
+              Math.round(incident.confidence * 100) - 3
+            )}%`,
+
+          classification:
+            `${Math.max(
+              60,
+              Math.round(incident.confidence * 100) - 6
+            )}%`,
+
+          perimeter:
+            `${(incident.area_km2 * 1.5).toFixed(1)} km`,
+
+          majorAxis:
+            `${Math.sqrt(incident.area_km2 * 2.5).toFixed(1)} km`,
+
+          minorAxis:
+            `${Math.sqrt(incident.area_km2 / 1.5).toFixed(1)} km`,
+
+          vessels: 2 + (index % 8),
+        }));
+
+        setIncidents(formattedIncidents);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch incidents:", error);
+      });
+  }, []);
 
   const selectedIncident = incidents.find(
     (incident) => incident.id === incidentId
@@ -245,6 +155,7 @@ export default function IncidentDetails() {
               <p className="text-[10px] uppercase tracking-[0.2em] text-[#62889e]">
                 Maritime Intelligence
               </p>
+
               <h1 className="mt-1 text-xl font-semibold">
                 Spill Incidents
               </h1>
@@ -261,10 +172,12 @@ export default function IncidentDetails() {
 
           <main className="p-7">
             <div className="mb-6 grid grid-cols-4 gap-4">
+
               <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
                 <p className="text-[9px] uppercase tracking-wider text-[#63899e]">
                   Total Incidents
                 </p>
+
                 <p className="mt-2 text-3xl font-bold">
                   {incidents.length}
                 </p>
@@ -274,6 +187,7 @@ export default function IncidentDetails() {
                 <p className="text-[9px] uppercase tracking-wider text-[#63899e]">
                   Active
                 </p>
+
                 <p className="mt-2 text-3xl font-bold text-[#ff6474]">
                   {
                     incidents.filter(
@@ -287,6 +201,7 @@ export default function IncidentDetails() {
                 <p className="text-[9px] uppercase tracking-wider text-[#63899e]">
                   Vessel Linked
                 </p>
+
                 <p className="mt-2 text-3xl font-bold text-[#20bce9]">
                   82
                 </p>
@@ -296,10 +211,12 @@ export default function IncidentDetails() {
                 <p className="text-[9px] uppercase tracking-wider text-[#63899e]">
                   Regions
                 </p>
+
                 <p className="mt-2 text-3xl font-bold text-[#35d69f]">
                   3
                 </p>
               </div>
+
             </div>
 
             <div className="mb-5 flex items-center justify-between">
