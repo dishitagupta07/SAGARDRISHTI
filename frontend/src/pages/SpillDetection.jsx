@@ -42,7 +42,7 @@ export default function SpillDetection() {
         setError("");
 
         const response = await fetch(
-          "http://127.0.0.1:8000/api/incidents/"
+          `${import.meta.env.VITE_BACKEND_URL}/api/incidents/`
         );
 
         if (!response.ok) {
@@ -91,7 +91,7 @@ export default function SpillDetection() {
       formData.append("pixel_size_m", "100");
 
       const response = await fetch(
-        "http://127.0.0.1:8001/detect-spill",
+       `${import.meta.env.VITE_ML_URL}/detect-spill`,
         {
           method: "POST",
           body: formData,

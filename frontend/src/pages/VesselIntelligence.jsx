@@ -169,7 +169,7 @@ export default function VesselIntelligence() {
       setTrajectoryError("");
 
       const response = await fetch(
-        "http://127.0.0.1:8001/predict-trajectory",
+`${import.meta.env.VITE_ML_URL}/predict-trajectory`,
         {
           method: "POST",
           headers: {
@@ -212,7 +212,7 @@ export default function VesselIntelligence() {
       setAttributionError("");
 
       const response = await fetch(
-        "http://127.0.0.1:8001/attribute-vessel",
+        `${import.meta.env.VITE_ML_URL}/attribute-vessel`,
         {
           method: "POST",
           headers: {

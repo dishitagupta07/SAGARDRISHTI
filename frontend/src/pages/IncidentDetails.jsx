@@ -44,7 +44,7 @@ export default function IncidentDetails() {
         setError("");
 
         const response = await fetch(
-          "http://127.0.0.1:8000/api/incidents/"
+          `${import.meta.env.VITE_BACKEND_URL}/api/incidents/`
         );
 
         if (!response.ok) {
@@ -114,7 +114,7 @@ export default function IncidentDetails() {
         setAnalysisLoading(true);
 
         const response = await fetch(
-          `http://127.0.0.1:8000/api/incidents/${incidentId}/analysis?start_time=2026-09-14%2010%3A00%3A00&end_time=2026-09-14%2010%3A20%3A00`
+          `https://sagardrishti-backend-bgql.onrender.com/api/incidents/${incidentId}/analysis?start_time=2026-09-14%2010%3A00%3A00&end_time=2026-09-14%2010%3A20%3A00`
         );
 
         if (!response.ok) {

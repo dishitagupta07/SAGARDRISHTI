@@ -132,7 +132,7 @@ export default function Reports() {
     const fetchIncidents = async () => {
       try {
         const response = await fetch(
-          "http://127.0.0.1:8000/api/incidents/"
+         `${import.meta.env.VITE_BACKEND_URL}/api/incidents/`
         );
 
         if (!response.ok) {
