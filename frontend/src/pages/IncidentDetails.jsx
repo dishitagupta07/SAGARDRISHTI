@@ -80,8 +80,8 @@ export default function IncidentDetails() {
 
           coordinates: `${incident.latitude}° N · ${incident.longitude}° E`,
 
-          wind: "—",
-          current: "—",
+          wind: "5.6 m/s · 120°",
+          current: "1.8 m/s · 75°",
           wave: "1.2 m",
           visibility: "8.5 km",
 
@@ -114,7 +114,7 @@ export default function IncidentDetails() {
         setAnalysisLoading(true);
 
         const response = await fetch(
-          `http://127.0.0.1:8000/api/incidents/${incidentId}/analysis?start_time=2026-09-14%2010%3A00%3A00&end_time=2026-09-14%2010%3A20%3A00`
+          `${import.meta.env.VITE_BACKEND_URL}/api/incidents/${incidentId}/analysis?start_time=2026-09-14%2010%3A00%3A00&end_time=2026-09-14%2010%3A20%3A00`
         );
 
         if (!response.ok) {
