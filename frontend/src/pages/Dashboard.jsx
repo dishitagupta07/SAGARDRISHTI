@@ -16,23 +16,23 @@ import Topbar from "../components/Topbar";
 const incidents = [
   {
     id: "SP-026",
-    location: "Arabian Sea",
+    location: "Bay of Bengal",
     status: "Critical",
     size: "42.6 km²",
     time: "2h 14m ago",
   },
   {
-    id: "SP-024",
-    location: "Bay of Bengal",
+    id: "SP-025",
+    location: "Arabian Sea",
     status: "Monitoring",
-    size: "18.2 km²",
+    size: "18.4 km²",
     time: "6h 42m ago",
   },
   {
-    id: "SP-021",
-    location: "Indian Ocean",
-    status: "Investigating",
-    size: "11.8 km²",
+    id: "SP-024",
+    location: "Bay of Bengal",
+    status: "Critical",
+    size: "31.8 km²",
     time: "1d ago",
   },
 ];
