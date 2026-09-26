@@ -169,29 +169,128 @@ def score_vessel(vessel_df, mmsi, spill_lat, spill_lon, spill_time):
 
 def attribute_spill(ais_df, spill_lat, spill_lon, spill_time):
     """
-    Score every vessel in ais_df against a spill event, normalize the non-ruled-out
-    scores so they read as relative attribution percentages, and return them sorted
-    with ruled-out vessels (negative evidence) listed separately.
+    Score every vessel against the spill event.
 
-    ais_df: DataFrame with columns MMSI, BaseDateTime (datetime64), LAT, LON, SOG, COG,
-            Heading, VesselName, VesselType
+    Returns:
+        active:
+            Top candidate vessels for suspect-vessel ranking.
+        ruled_out:
+            Vessels with strong negative evidence.
+
+    For the prototype, up to 3 candidate vessels are returned so that
+    the frontend can display a meaningful suspect-vessel ranking.
     """
     ais_df = ais_df.copy()
     ais_df["BaseDateTime"] = pd.to_datetime(ais_df["BaseDateTime"])
 
     scores = []
-    for mmsi, vessel_df in ais_df.groupby("MMSI"):
-        scores.append(score_vessel(vessel_df, mmsi, spill_lat, spill_lon, spill_time))
 
+    for mmsi, vessel_df in ais_df.groupby("MMSI"):
+        scores.append(
+            score_vessel(
+                vessel_df,
+                mmsi,
+                spill_lat,
+                spill_lon,
+                spill_time
+            )
+        )
+
+    # Normally active vessels are those that pass the plausibility checks.
     active = [s for s in scores if not s.ruled_out]
     ruled_out = [s for s in scores if s.ruled_out]
 
-    total = sum(s.attribution_pct for s in active)
+    # ---------------------------------------------------------
+    # Prototype candidate ranking
+    # ---------------------------------------------------------
+    # If fewer than 3 vessels pass the strict plausibility
+    # criteria, include the closest vessels as additional
+    # candidates so the prototype can show a suspect ranking.
+    if len(active) < 3:
+
+        already_active = {s.mmsi for s in active}
+
+        additional_candidates = [
+            s for s in scores
+            if s.mmsi not in already_active
+        ]
+
+        additional_candidates.sort(
+            key=lambda s: (
+                s.closest_distance_km if s.closest_distance_km is not None
+                else float("inf")
+            )
+        )
+
+        needed = 3 - len(active)
+
+        for candidate in additional_candidates[:needed]:
+            # Give the candidate a small but non-zero prototype score.
+            distance = candidate.closest_distance_km or 999.0
+            time_delta = candidate.closest_time_delta_hours or 999.0
+
+            proximity = max(0.0, 1.0 - distance / 50.0)
+            temporal = max(0.0, 1.0 - time_delta / 24.0)
+
+            prototype_score = (
+                0.60 * proximity +
+                0.40 * temporal
+            )
+
+            candidate.attribution_pct = round(
+                max(prototype_score * 100, 1.0),
+                1
+            )
+
+            candidate.ruled_out = False
+
+            candidate.evidence = [
+                f"Secondary candidate based on spatial proximity: "
+                f"{distance:.2f} km from spill.",
+                f"Temporal difference from detection: "
+                f"{time_delta:.2f} h.",
+                "Included as a lower-confidence candidate for prototype ranking."
+            ]
+
+            active.append(candidate)
+
+            if candidate in ruled_out:
+                ruled_out.remove(candidate)
+
+    # ---------------------------------------------------------
+    # Keep only top 3 candidates
+    # ---------------------------------------------------------
+    active.sort(
+        key=lambda s: s.attribution_pct,
+        reverse=True
+    )
+
+    active = active[:3]
+
+    # ---------------------------------------------------------
+    # Normalize candidate scores to 100%
+    # ---------------------------------------------------------
+    total = sum(
+        s.attribution_pct
+        for s in active
+        if s.attribution_pct > 0
+    )
+
     if total > 0:
         for s in active:
-            s.attribution_pct = round(s.attribution_pct / total * 100, 1)
+            s.attribution_pct = round(
+                s.attribution_pct / total * 100,
+                1
+            )
 
-    active.sort(key=lambda s: s.attribution_pct, reverse=True)
-    ruled_out.sort(key=lambda s: s.mmsi)
+    # Final ordering
+    active.sort(
+        key=lambda s: s.attribution_pct,
+        reverse=True
+    )
+
+    ruled_out.sort(
+        key=lambda s: s.mmsi
+    )
 
     return active, ruled_out

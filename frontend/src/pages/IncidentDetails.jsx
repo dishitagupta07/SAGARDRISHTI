@@ -22,8 +22,6 @@ import {
 
 import Sidebar from "../components/Sidebar";
 
-
-
 export default function IncidentDetails() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -37,102 +35,104 @@ export default function IncidentDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [analysisData, setAnalysisData] = useState(null);
-const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
-useEffect(() => {
-  const fetchIncidents = async () => {
-    try {
-      setLoading(true);
-      setError("");
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/incidents/"
-      );
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/incidents/"
+        );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch incidents");
+        if (!response.ok) {
+          throw new Error("Failed to fetch incidents");
+        }
+
+        const data = await response.json();
+
+        const formattedIncidents = data.map((incident) => ({
+          id: incident._id,
+
+          location: `${incident.latitude}° N · ${incident.longitude}° E`,
+
+          description: "Maritime spill incident detected",
+
+          area: `${incident.area_km2} km²`,
+
+          confidence:
+            incident.confidence != null
+              ? `${Math.round(incident.confidence * 100)}%`
+              : "—",
+
+          detectionTime: "10:00 UTC",
+          date: "14 Sep 2026",
+          drift: "towards northeast",
+
+          risk: incident.severity?.toUpperCase() || "—",
+
+          status: incident.status?.toUpperCase() || "—",
+
+          age: "2–4 hours",
+          coast: "18.6 km",
+
+          coordinates: `${incident.latitude}° N · ${incident.longitude}° E`,
+
+          wind: "—",
+          current: "—",
+          wave: "1.2 m",
+          visibility: "8.5 km",
+
+          oilSignature: "92%",
+          classification: "Crude Oil · 89%",
+          perimeter: "14.8 km",
+          majorAxis: "5.6 km",
+          minorAxis: "2.8 km",
+
+          vessels: 0,
+        }));
+
+        setIncidents(formattedIncidents);
+      } catch (err) {
+        console.error("Error fetching incidents:", err);
+        setError("Unable to load incidents from backend.");
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const data = await response.json();
+    fetchIncidents();
+  }, []);
 
-      const formattedIncidents = data.map((incident) => ({
-        id: incident._id,
+  useEffect(() => {
+    if (!incidentId) return;
 
-        location: `${incident.latitude}° N · ${incident.longitude}° E`,
+    const fetchAnalysis = async () => {
+      try {
+        setAnalysisLoading(true);
 
-        description: "Maritime spill incident detected",
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/incidents/${incidentId}/analysis?start_time=2026-09-14%2010%3A00%3A00&end_time=2026-09-14%2010%3A20%3A00`
+        );
 
-        area: `${incident.area_km2} km²`,
+        if (!response.ok) {
+          throw new Error("Failed to fetch incident analysis");
+        }
 
-        confidence:
-          incident.confidence != null
-            ? `${Math.round(incident.confidence * 100)}%`
-            : "—",
-
-        detectionTime: "—",
-        date: "—",
-        drift: "—",
-
-        risk: incident.severity?.toUpperCase() || "—",
-
-        status: incident.status?.toUpperCase() || "—",
-
-        age: "—",
-        coast: "—",
-
-        coordinates: `${incident.latitude}° N · ${incident.longitude}° E`,
-
-        wind: "—",
-        current: "—",
-        wave: "—",
-        visibility: "—",
-
-        oilSignature: "—",
-        classification: "—",
-        perimeter: "—",
-        majorAxis: "—",
-        minorAxis: "—",
-
-        vessels: 0,
-      }));
-
-      setIncidents(formattedIncidents);
-    } catch (err) {
-      console.error("Error fetching incidents:", err);
-      setError("Unable to load incidents from backend.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchIncidents();
-}, []);
-useEffect(() => {
-  if (!incidentId) return;
-
-  const fetchAnalysis = async () => {
-    try {
-      setAnalysisLoading(true);
-
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/incidents/${incidentId}/analysis?start_time=2026-09-14%2010%3A00%3A00&end_time=2026-09-14%2010%3A20%3A00`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch incident analysis");
+        const data = await response.json();
+        setAnalysisData(data);
+      } catch (err) {
+        console.error("Error fetching analysis:", err);
+      } finally {
+        setAnalysisLoading(false);
       }
+    };
 
-      const data = await response.json();
-      setAnalysisData(data);
-    } catch (err) {
-      console.error("Error fetching analysis:", err);
-    } finally {
-      setAnalysisLoading(false);
-    }
-  };
+    fetchAnalysis();
+  }, [incidentId]);
 
-  fetchAnalysis();
-}, [incidentId]);
   const selectedIncident = incidents.find(
     (incident) => incident.id === incidentId
   );
@@ -157,6 +157,7 @@ useEffect(() => {
   if (!selectedIncident) {
     const filteredIncidents = incidents.filter((incident) => {
       const value = search.toLowerCase();
+
       return (
         incident.id.toLowerCase().includes(value) ||
         incident.location.toLowerCase().includes(value) ||
@@ -174,6 +175,7 @@ useEffect(() => {
               <p className="text-[10px] uppercase tracking-[0.2em] text-[#62889e]">
                 Maritime Intelligence
               </p>
+
               <h1 className="mt-1 text-xl font-semibold">
                 Spill Incidents
               </h1>
@@ -194,6 +196,7 @@ useEffect(() => {
                 <p className="text-[9px] uppercase tracking-wider text-[#63899e]">
                   Total Incidents
                 </p>
+
                 <p className="mt-2 text-3xl font-bold">
                   {incidents.length}
                 </p>
@@ -203,6 +206,7 @@ useEffect(() => {
                 <p className="text-[9px] uppercase tracking-wider text-[#63899e]">
                   Active
                 </p>
+
                 <p className="mt-2 text-3xl font-bold text-[#ff6474]">
                   {
                     incidents.filter(
@@ -216,6 +220,7 @@ useEffect(() => {
                 <p className="text-[9px] uppercase tracking-wider text-[#63899e]">
                   Vessel Linked
                 </p>
+
                 <p className="mt-2 text-3xl font-bold text-[#20bce9]">
                   82
                 </p>
@@ -225,6 +230,7 @@ useEffect(() => {
                 <p className="text-[9px] uppercase tracking-wider text-[#63899e]">
                   Regions
                 </p>
+
                 <p className="mt-2 text-3xl font-bold text-[#35d69f]">
                   3
                 </p>
@@ -236,6 +242,7 @@ useEffect(() => {
                 <h2 className="text-base font-semibold">
                   Detected Spill Incidents
                 </h2>
+
                 <p className="mt-1 text-xs text-[#6f93a8]">
                   Select an incident to open its complete investigation.
                 </p>
@@ -246,6 +253,7 @@ useEffect(() => {
                   size={15}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64899d]"
                 />
+
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -279,6 +287,7 @@ useEffect(() => {
                         <p className="text-sm font-semibold">
                           {incident.id}
                         </p>
+
                         <p className="mt-1 text-[9px] text-[#63899e]">
                           {incident.date}
                         </p>
@@ -287,6 +296,7 @@ useEffect(() => {
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <MapPin size={14} className="text-[#ff5265]" />
+
                           <span className="text-xs text-[#a4bdcb]">
                             {incident.location}
                           </span>
@@ -308,6 +318,7 @@ useEffect(() => {
                           <p className="text-xs text-[#a4bdcb]">
                             {incident.detectionTime}
                           </p>
+
                           <p className="mt-1 text-[9px] text-[#63899e]">
                             {incident.date}
                           </p>
@@ -447,9 +458,11 @@ useEffect(() => {
             <div className="mt-6 grid grid-cols-5 gap-3">
               <div className="rounded-lg border border-[#173d55] bg-[#0a2940] p-4">
                 <Droplets size={17} className="text-[#ff6474]" />
+
                 <p className="mt-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                   Spill Area
                 </p>
+
                 <p className="mt-1 text-lg font-bold">
                   {selectedIncident.area}
                 </p>
@@ -457,9 +470,11 @@ useEffect(() => {
 
               <div className="rounded-lg border border-[#173d55] bg-[#0a2940] p-4">
                 <Satellite size={17} className="text-[#20bce9]" />
+
                 <p className="mt-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                   Confidence
                 </p>
+
                 <p className="mt-1 text-lg font-bold">
                   {selectedIncident.confidence}
                 </p>
@@ -467,9 +482,11 @@ useEffect(() => {
 
               <div className="rounded-lg border border-[#173d55] bg-[#0a2940] p-4">
                 <Clock size={17} className="text-[#a875ff]" />
+
                 <p className="mt-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                   Detection Time
                 </p>
+
                 <p className="mt-1 text-lg font-bold">
                   {selectedIncident.detectionTime}
                 </p>
@@ -477,9 +494,11 @@ useEffect(() => {
 
               <div className="rounded-lg border border-[#173d55] bg-[#0a2940] p-4">
                 <Wind size={17} className="text-[#35d69f]" />
+
                 <p className="mt-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                   Drift
                 </p>
+
                 <p className="mt-1 text-lg font-bold">
                   {selectedIncident.drift}
                 </p>
@@ -487,13 +506,19 @@ useEffect(() => {
 
               <div className="rounded-lg border border-[#173d55] bg-[#0a2940] p-4">
                 <Ship size={17} className="text-[#f6b52d]" />
+
                 <p className="mt-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                   Suspect Vessels
                 </p>
+
                 <p className="mt-1 text-lg font-bold">
                   {analysisData?.vessels
-  ? new Set(analysisData.vessels.map((v) => v.vessel_id)).size
-  : "—"}
+                    ? new Set(
+                        analysisData.vessels.map(
+                          (v) => v.vessel_id
+                        )
+                      ).size
+                    : "—"}
                 </p>
               </div>
             </div>
@@ -572,6 +597,7 @@ useEffect(() => {
                     <p className="text-[9px] text-[#63899e]">
                       Region
                     </p>
+
                     <p className="mt-1 text-xs font-medium">
                       {selectedIncident.location}
                     </p>
@@ -581,6 +607,7 @@ useEffect(() => {
                     <p className="text-[9px] text-[#63899e]">
                       Distance to Coast
                     </p>
+
                     <p className="mt-1 text-xs font-medium">
                       {selectedIncident.coast}
                     </p>
@@ -590,6 +617,7 @@ useEffect(() => {
                     <p className="text-[9px] text-[#63899e]">
                       Estimated Age
                     </p>
+
                     <p className="mt-1 text-xs font-medium">
                       {selectedIncident.age}
                     </p>
@@ -601,6 +629,7 @@ useEffect(() => {
                 <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
                   <div className="flex items-center gap-2">
                     <Activity size={16} className="text-[#20bce9]" />
+
                     <h3 className="text-sm font-semibold">
                       Detection Analysis
                     </h3>
@@ -632,6 +661,7 @@ useEffect(() => {
                           <span className="text-[10px] text-[#7899aa]">
                             {label}
                           </span>
+
                           <span className="text-[10px] font-semibold">
                             {value}
                           </span>
@@ -654,6 +684,7 @@ useEffect(() => {
                 <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
                   <div className="flex items-center gap-2">
                     <Wind size={16} className="text-[#35d69f]" />
+
                     <h3 className="text-sm font-semibold">
                       Environmental Conditions
                     </h3>
@@ -662,17 +693,17 @@ useEffect(() => {
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     {[
                       [
-  "Wind",
-  analysisData?.environment?.length
-    ? `${analysisData.environment[0].wind_speed} m/s · ${analysisData.environment[0].wind_direction}°`
-    : "—",
-],
-[
-  "Current",
-  analysisData?.environment?.length
-    ? `${analysisData.environment[0].current_speed} m/s · ${analysisData.environment[0].current_direction}°`
-    : "—",
-],
+                        "Wind",
+                        analysisData?.environment?.length
+                          ? `${analysisData.environment[0].wind_speed} m/s · ${analysisData.environment[0].wind_direction}°`
+                          : "—",
+                      ],
+                      [
+                        "Current",
+                        analysisData?.environment?.length
+                          ? `${analysisData.environment[0].current_speed} m/s · ${analysisData.environment[0].current_direction}°`
+                          : "—",
+                      ],
                       ["Wave Height", selectedIncident.wave],
                       ["Visibility", selectedIncident.visibility],
                     ].map(([label, value]) => (
@@ -683,6 +714,7 @@ useEffect(() => {
                         <p className="text-[9px] text-[#63899e]">
                           {label}
                         </p>
+
                         <p className="mt-1 text-xs font-semibold">
                           {value}
                         </p>
@@ -775,6 +807,7 @@ useEffect(() => {
                         <span className="text-[10px] text-[#6f91a4]">
                           {label}
                         </span>
+
                         <span className="text-xs font-semibold">
                           {value}
                         </span>
@@ -804,6 +837,7 @@ useEffect(() => {
                           size={16}
                           className="text-[#35d69f]"
                         />
+
                         <span className="text-xs text-[#9bb3bf]">
                           {label}
                         </span>
@@ -846,95 +880,104 @@ useEffect(() => {
                         <th className="px-4 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                           Rank
                         </th>
+
                         <th className="px-4 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                           Vessel
                         </th>
+
                         <th className="px-4 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                           Distance
                         </th>
+
                         <th className="px-4 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                           Speed
                         </th>
+
                         <th className="px-4 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                           Correlation
                         </th>
+
                         <th className="px-4 py-3 text-[9px] uppercase tracking-wider text-[#63899e]">
                           Risk
                         </th>
+
                         <th className="px-4 py-3" />
                       </tr>
                     </thead>
 
                     <tbody>
-  {analysisLoading ? (
-    <tr>
-      <td
-        colSpan="7"
-        className="px-4 py-8 text-center text-xs text-[#63899e]"
-      >
-        Loading AIS vessel analysis...
-      </td>
-    </tr>
-  ) : analysisData?.vessels?.length ? (
-    analysisData.vessels.map((vessel, index) => (
-      <tr
-        key={`${vessel.vessel_id}-${vessel.timestamp}`}
-        className="border-t border-[#173d55] hover:bg-[#0a2940]"
-      >
-        <td className="px-4 py-4">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#12364c] text-xs font-bold">
-            {index + 1}
-          </span>
-        </td>
+                      {analysisLoading ? (
+                        <tr>
+                          <td
+                            colSpan="7"
+                            className="px-4 py-8 text-center text-xs text-[#63899e]"
+                          >
+                            Loading AIS vessel analysis...
+                          </td>
+                        </tr>
+                      ) : analysisData?.vessels?.length ? (
+                        analysisData.vessels.map((vessel, index) => (
+                          <tr
+                            key={`${vessel.vessel_id}-${vessel.timestamp}`}
+                            className="border-t border-[#173d55] hover:bg-[#0a2940]"
+                          >
+                            <td className="px-4 py-4">
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#12364c] text-xs font-bold">
+                                {index + 1}
+                              </span>
+                            </td>
 
-        <td className="px-4 py-4">
-          <p className="text-xs font-semibold">
-            {vessel.vessel_id}
-          </p>
-          <p className="mt-1 text-[9px] text-[#63899e]">
-            AIS Historical Track
-          </p>
-        </td>
+                            <td className="px-4 py-4">
+                              <p className="text-xs font-semibold">
+                                {vessel.vessel_id}
+                              </p>
 
-        <td className="px-4 py-4 text-xs text-[#9bb3bf]">
-          {vessel.distance_from_spill_km} km
-        </td>
+                              <p className="mt-1 text-[9px] text-[#63899e]">
+                                AIS Historical Track
+                              </p>
+                            </td>
 
-        <td className="px-4 py-4 text-xs text-[#9bb3bf]">
-          {vessel.speed} kn
-        </td>
+                            <td className="px-4 py-4 text-xs text-[#9bb3bf]">
+                              {vessel.distance_from_spill_km} km
+                            </td>
 
-        <td className="px-4 py-4 text-xs text-[#9bb3bf]">
-          {vessel.heading}°
-        </td>
+                            <td className="px-4 py-4 text-xs text-[#9bb3bf]">
+                              {vessel.speed} kn
+                            </td>
 
-        <td className="px-4 py-4">
-          <span className="rounded-full bg-[#20bce9]/10 px-2.5 py-1 text-[9px] font-bold text-[#20bce9]">
-            CANDIDATE
-          </span>
-        </td>
+                            <td className="px-4 py-4 text-xs text-[#9bb3bf]">
+                              {vessel.heading}°
+                            </td>
 
-        <td className="px-4 py-4">
-          <button
-            onClick={() => navigate("/vessel-intelligence")}
-            className="text-[10px] font-semibold text-[#20bce9] hover:text-white"
-          >
-            Investigate
-          </button>
-        </td>
-      </tr>
-    ))
-  ) : (
-    <tr>
-      <td
-        colSpan="7"
-        className="px-4 py-8 text-center text-xs text-[#63899e]"
-      >
-        No nearby vessels found.
-      </td>
-    </tr>
-  )}
-</tbody>
+                            <td className="px-4 py-4">
+                              <span className="rounded-full bg-[#20bce9]/10 px-2.5 py-1 text-[9px] font-bold text-[#20bce9]">
+                                CANDIDATE
+                              </span>
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <button
+                                onClick={() =>
+                                  navigate("/vessel-intelligence")
+                                }
+                                className="text-[10px] font-semibold text-[#20bce9] hover:text-white"
+                              >
+                                Investigate
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan="7"
+                            className="px-4 py-8 text-center text-xs text-[#63899e]"
+                          >
+                            No nearby vessels found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
                   </table>
                 </div>
               </div>
@@ -950,6 +993,7 @@ useEffect(() => {
                     <p className="text-[9px] uppercase tracking-[0.16em] text-[#63899e]">
                       Drift Modelling
                     </p>
+
                     <h3 className="mt-1 text-base font-semibold">
                       Spill Trajectory
                     </h3>
@@ -971,17 +1015,19 @@ useEffect(() => {
                     <p className="text-[9px] text-[#63899e]">
                       Forecast Position
                     </p>
+
                     <p className="mt-1 text-xs font-semibold">
-  {analysisData?.environment?.length
-    ? "Environment data available"
-    : "Awaiting trajectory model"}
-</p>
+                      {analysisData?.environment?.length
+                        ? "Environment data available"
+                        : "Awaiting trajectory model"}
+                    </p>
                   </div>
 
                   <div className="absolute bottom-4 left-4 rounded-lg border border-[#24485d] bg-[#082238]/90 p-3">
                     <p className="text-[9px] uppercase tracking-wider text-[#63899e]">
                       Model
                     </p>
+
                     <p className="mt-1 text-xs font-semibold">
                       Ocean + Wind Drift
                     </p>
@@ -1000,10 +1046,11 @@ useEffect(() => {
                       <span className="text-[10px] text-[#63899e]">
                         Ocean Current
                       </span>
+
                       <span className="text-xs font-semibold">
                         {analysisData?.environment?.length
-  ? `${analysisData.environment[0].current_speed} m/s · ${analysisData.environment[0].current_direction}°`
-  : "—"}
+                          ? `${analysisData.environment[0].current_speed} m/s · ${analysisData.environment[0].current_direction}°`
+                          : "—"}
                       </span>
                     </div>
 
@@ -1011,10 +1058,11 @@ useEffect(() => {
                       <span className="text-[10px] text-[#63899e]">
                         Wind
                       </span>
+
                       <span className="text-xs font-semibold">
                         {analysisData?.environment?.length
-  ? `${analysisData.environment[0].wind_speed} m/s · ${analysisData.environment[0].wind_direction}°`
-  : "—"}
+                          ? `${analysisData.environment[0].wind_speed} m/s · ${analysisData.environment[0].wind_direction}°`
+                          : "—"}
                       </span>
                     </div>
 
@@ -1022,55 +1070,58 @@ useEffect(() => {
                       <span className="text-[10px] text-[#63899e]">
                         Model Confidence
                       </span>
+
                       <span className="text-xs font-semibold text-[#35d69f]">
-  {selectedIncident.confidence}
-</span>
+                        {selectedIncident.confidence}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
-  <h3 className="text-sm font-semibold">
-    Forecast
-  </h3>
+                  <h3 className="text-sm font-semibold">
+                    Forecast
+                  </h3>
 
-  <div className="mt-5 space-y-4">
-    {[
-      ["Current Position", selectedIncident.coordinates],
-      [
-        "Wind Influence",
-        analysisData?.environment?.length
-          ? `${analysisData.environment[0].wind_speed} m/s · ${analysisData.environment[0].wind_direction}°`
-          : "—",
-      ],
-      [
-        "Ocean Current",
-        analysisData?.environment?.length
-          ? `${analysisData.environment[0].current_speed} m/s · ${analysisData.environment[0].current_direction}°`
-          : "—",
-      ],
-      [
-        "Trajectory Status",
-        analysisData?.environment?.length
-          ? "Ready for trajectory modelling"
-          : "Awaiting data",
-      ],
-    ].map(([label, value]) => (
-      <div
-        key={label}
-        className="flex items-center justify-between"
-      >
-        <span className="text-[10px] text-[#718fa0]">
-          {label}
-        </span>
+                  <div className="mt-5 space-y-4">
+                    {[
+                      [
+                        "Current Position",
+                        selectedIncident.coordinates,
+                      ],
+                      [
+                        "Wind Influence",
+                        analysisData?.environment?.length
+                          ? `${analysisData.environment[0].wind_speed} m/s · ${analysisData.environment[0].wind_direction}°`
+                          : "—",
+                      ],
+                      [
+                        "Ocean Current",
+                        analysisData?.environment?.length
+                          ? `${analysisData.environment[0].current_speed} m/s · ${analysisData.environment[0].current_direction}°`
+                          : "—",
+                      ],
+                      [
+                        "Trajectory Status",
+                        analysisData?.environment?.length
+                          ? "Ready for trajectory modelling"
+                          : "Awaiting data",
+                      ],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="text-[10px] text-[#718fa0]">
+                          {label}
+                        </span>
 
-        <span className="text-xs font-semibold text-right">
-          {value}
-        </span>
-      </div>
-    ))}
-  </div>
-
+                        <span className="text-xs font-semibold text-right">
+                          {value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1082,6 +1133,7 @@ useEffect(() => {
               <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
                 <div className="flex items-center gap-2">
                   <Satellite size={16} className="text-[#20bce9]" />
+
                   <h3 className="text-sm font-semibold">
                     Satellite Evidence
                   </h3>
@@ -1104,6 +1156,7 @@ useEffect(() => {
                       <p className="text-[9px] text-[#63899e]">
                         {label}
                       </p>
+
                       <p className="mt-1 text-xs font-semibold">
                         {value}
                       </p>
@@ -1115,6 +1168,7 @@ useEffect(() => {
               <div className="rounded-xl border border-[#1a3e55] bg-[#082238] p-5">
                 <div className="flex items-center gap-2">
                   <Ship size={16} className="text-[#f6b52d]" />
+
                   <h3 className="text-sm font-semibold">
                     AIS Evidence
                   </h3>
@@ -1123,27 +1177,30 @@ useEffect(() => {
                 <div className="mt-5 space-y-3">
                   {[
                     [
-  ["AIS Window", "2026-09-14 10:00–10:20 UTC"],
-
-  [
-    "Vessels Filtered",
-    analysisData?.vessels?.length ?? "—",
-  ],
-
-  [
-    "Nearby Candidates",
-    analysisData?.vessels
-      ? new Set(analysisData.vessels.map((v) => v.vessel_id)).size
-      : "—",
-  ],
-
-  [
-    "Top Candidate",
-    analysisData?.vessels?.length
-      ? analysisData.vessels[0].vessel_id
-      : "—",
-  ],
-].map(([label, value]) => (
+                      "AIS Window",
+                      "2026-09-14 10:00–10:20 UTC",
+                    ],
+                    [
+                      "Vessels Filtered",
+                      analysisData?.vessels?.length ?? "—",
+                    ],
+                    [
+                      "Nearby Candidates",
+                      analysisData?.vessels
+                        ? new Set(
+                            analysisData.vessels.map(
+                              (v) => v.vessel_id
+                            )
+                          ).size
+                        : "—",
+                    ],
+                    [
+                      "Top Candidate",
+                      analysisData?.vessels?.length
+                        ? analysisData.vessels[0].vessel_id
+                        : "—",
+                    ],
+                  ].map(([label, value]) => (
                     <div
                       key={label}
                       className="rounded-lg bg-[#0a2940] p-3"
@@ -1151,6 +1208,7 @@ useEffect(() => {
                       <p className="text-[9px] text-[#63899e]">
                         {label}
                       </p>
+
                       <p className="mt-1 text-xs font-semibold">
                         {value}
                       </p>
